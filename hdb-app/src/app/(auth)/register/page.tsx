@@ -2,31 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-export default function RegisterPage() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e53935 0%, #1e3a8a 100%)',
-      color: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <h2 style={{ color: '#1e3a8a', background: 'white', padding: '0.5em 1em', borderRadius: '8px', boxShadow: '0 2px 8px rgba(229,57,53,0.1)' }}>
-        Register
-      </h2>
-      <form style={{ marginTop: '2em', background: 'white', padding: '2em', borderRadius: '12px', boxShadow: '0 2px 16px rgba(229,57,53,0.15)', display: 'flex', flexDirection: 'column', gap: '1em', minWidth: '300px' }}>
-        <input type="text" placeholder="Username" style={{ padding: '0.75em', borderRadius: '6px', border: '1px solid #1e3a8a' }} />
-        <input type="email" placeholder="Email" style={{ padding: '0.75em', borderRadius: '6px', border: '1px solid #e53935' }} />
-        <input type="password" placeholder="Password" style={{ padding: '0.75em', borderRadius: '6px', border: '1px solid #1e3a8a' }} />
-        <button type="submit" style={{ background: '#1e3a8a', color: 'white', padding: '0.75em', borderRadius: '6px', border: 'none', fontWeight: 'bold' }}>
-          Register
-        </button>
-      </form>
-    </div>
-  );
-}
+
 export default function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
