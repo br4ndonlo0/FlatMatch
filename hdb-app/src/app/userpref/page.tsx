@@ -14,14 +14,11 @@ export default function UserPref() {
   ];
 
   // Dropdown states
-  const [income, setIncome] = useState("");
-  const [citizenship, setCitizenship] = useState("");
-  const [householdSize, setHouseholdSize] = useState("");
-  const [loanType, setLoanType] = useState("");
   const [flatType, setFlatType] = useState("");
-  const [budget, setBudget] = useState("");
-  const [area, setArea] = useState("");
-  const [lease, setLease] = useState("");
+  const [budget, setbudget] = useState("");
+  const [area, setarea] = useState("");
+  const [lease, setlease] = useState("");
+
 
   return (
     <div style={{ minHeight: "100vh", width: "100vw", background: "#fad3b1ff" }}>
@@ -131,50 +128,59 @@ export default function UserPref() {
           minHeight: "400px"
         }}
       >
-        {/* Top Left: Yearly household income */}
+        {/* Top Left: Yearly household flatType */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Yearly Household Income</label>
-          <select value={income} onChange={e => setIncome(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
+          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Flat Type</label>
+          <select value={flatType} onChange={e => setFlatType(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            <option value="$0-$30000">$0-$30000</option>
-            <option value="$30000-$50000">$30000-$50000</option>
-            <option value="$50000-$75000">$50000-$75000</option>
-            <option value="$75000-$100000">$75000-$100000</option>
-            <option value=">$100000">More than $100000</option>
+            <option value="1 Room">1 Room</option>
+            <option value="2 Room">2 Room</option>
+            <option value="3 Room">3 Room</option>
+            <option value="4 Room">4 Room</option>
+            <option value="5 Room">5 Room</option>
           </select>
         </div>
 
-        {/* Top Right: Citizenship */}
+        {/* Top Right: budget */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Citizenship</label>
-          <select value={citizenship} onChange={e => setCitizenship(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
+          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Budget</label>
+          <select value={budget} onChange={e => setbudget(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            <option value="Singapore">Singapore</option>
-            <option value="Permanent Resident">Permanent Resident</option>
-            <option value="Foreigner">Foreigner</option>
+            <option value="Below $500k">Below $500k</option>
+            <option value="$500k-$750k">$500k-$750k</option>
+            <option value="$750k-$1M">$750k-$1M</option>
+            <option value="$1M-$1.25M">$1M-$1.25M</option>
+            <option value="$1.5M-$2M">$1.5M-$2M</option>
+            <option value=">$2M">More than $2M</option>
           </select>
         </div>
 
         {/* Bottom Left: Household Size */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Household Size</label>
-          <select value={householdSize} onChange={e => setHouseholdSize(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
+          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Area</label>
+          <select value={area} onChange={e => setarea(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            {[1,2,3,4,5,6,7,8,9].map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-            <option value=">9">More than 9</option>
+            <option value="North">North</option>
+            <option value="North-East">North-East</option>
+            <option value="North-West">North-West</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="South">South</option>
+            <option value="South-East">South-East</option>
+            <option value="South-West">South-West</option>
+            <option value="Central">Central</option>
           </select>
         </div>
 
         {/* Bottom Right: Loan Type */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Loan Type</label>
-          <select value={loanType} onChange={e => setLoanType(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
+          <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Remaining Lease(Years)</label>
+          <select value={lease} onChange={e => setlease(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            <option value="Loan A">Loan A</option>
-            <option value="Loan B">Loan B</option>
-            <option value="Loan C">Loan C</option>
+            <option value="0-25">0-25</option>
+            <option value="25- 50">25- 50</option>
+            <option value="50-75">50-75</option>
+            <option value="75-99">75-99</option>
           </select>
         </div>
 
