@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 export default function UserInfo() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -16,6 +16,7 @@ export default function UserInfo() {
   // All form states
   const [income, setIncome] = useState("");
   const [formError, setFormError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [citizenship, setCitizenship] = useState("");
   const [householdSize, setHouseholdSize] = useState("");
   const [loanType, setLoanType] = useState("");
@@ -23,6 +24,28 @@ export default function UserInfo() {
   const [budget, setBudget] = useState("");
   const [area, setArea] = useState("");
   const [lease, setLease] = useState("");
+
+	useEffect(() => {
+		async function fetchUserInfo() {
+		try {
+			const res = await fetch("/api/userinfo", { method: "GET" });
+			if (!res.ok) return;
+			const data = await res.json();
+			const user = data.user;
+			if (user) {
+			setIncome(user.income ? String(user.income) : "");
+			setCitizenship(user.citizenship || "");
+			setHouseholdSize(user.householdSize ? String(user.householdSize) : "");
+			setLoanType(user.loan || "");
+			setFlatType(user.flatType || "");
+			setBudget(user.budget ? String(user.budget) : "");
+			setArea(user.area || "");
+			setLease(user.leaseLeft ? String(user.leaseLeft) : "");
+			}
+		} catch {}
+		}
+		fetchUserInfo();
+	}, []);
 
   return (
     <div style={{ minHeight: "100vh", width: "100vw", background: "#fad3b1ff" }}>
@@ -42,7 +65,7 @@ export default function UserInfo() {
           background: "#fff"
         }}>
           {/* Home Button */}
-          <Link href="/" style={{
+          <Link href="/home" style={{
             background: "#fad3b1ff",
             borderRadius: "16px",
             padding: "8px 24px",
@@ -121,6 +144,7 @@ export default function UserInfo() {
         onSubmit={async e => {
           e.preventDefault();
           setFormError("");
+          setSuccessMsg("");
           if (!/^[0-9]+$/.test(income)) {
             setFormError("Yearly Household Income must be an integer.");
             return;
@@ -143,12 +167,14 @@ export default function UserInfo() {
             const data = await res.json();
             if (!res.ok) {
               setFormError(data.error || data.message || "Failed to save user info.");
+              setSuccessMsg("");
             } else {
-              // Optionally show success or redirect
               setFormError("");
+              setSuccessMsg("Successfully Saved!");
             }
           } catch (err) {
             setFormError("Failed to save user info. Please try again.");
+            setSuccessMsg("");
           }
         }}
         style={{
@@ -251,12 +277,8 @@ export default function UserInfo() {
             <option value="">Select...</option>
             <option value="North">North</option>
             <option value="North-East">North-East</option>
-            <option value="North-West">North-West</option>
             <option value="East">East</option>
             <option value="West">West</option>
-            <option value="South">South</option>
-            <option value="South-East">South-East</option>
-            <option value="South-West">South-West</option>
             <option value="Central">Central</option>
           </select>
         </div>
@@ -273,6 +295,7 @@ export default function UserInfo() {
         {/* Save Button: bottom middle, spans both columns */}
         <div style={{ gridColumn: "1 / span 2", textAlign: "center", marginTop: "32px" }}>
           {formError && <div style={{ color: "red", marginBottom: "16px", fontWeight: 500 }}>{formError}</div>}
+          {successMsg && <div style={{ color: "green", marginBottom: "16px", fontWeight: 500 }}>{successMsg}</div>}
           <button
             type="submit"
             style={{

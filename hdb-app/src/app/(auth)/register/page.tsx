@@ -41,7 +41,7 @@ export default function Register() {
 
       const data = await res.json();
       if (res.ok) {
-        router.push("/home");
+        router.push("/login");
       } else {
         setError(data.message || data.error || "Registration failed.");
       }

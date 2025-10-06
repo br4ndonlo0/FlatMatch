@@ -1,3 +1,20 @@
+export async function GET() {
+	await connectDB();
+	try {
+		const cookieStore = cookies();
+		const username = (await cookieStore).get("username")?.value;
+		if (!username) {
+			return NextResponse.json({ error: "Username is required." }, { status: 400 });
+		}
+		const user = await User.findOne({ username });
+		if (!user) {
+			return NextResponse.json({ error: "User not found." }, { status: 404 });
+		}
+		return NextResponse.json({ user });
+	} catch (err) {
+		return NextResponse.json({ error: "Failed to fetch user info." }, { status: 500 });
+	}
+}
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
