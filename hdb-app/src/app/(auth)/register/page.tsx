@@ -15,6 +15,12 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
+    // Client-side password validation
+    if (password.length < 5) {
+      setError("Password must be at least 5 characters long.");
+      return;
+    }
+
     if (password !== rePassword) {
       setError("Passwords do not match.");
       return;
@@ -25,9 +31,11 @@ export default function Register() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rePassword }),
       });
+
       const data = await res.json();
+
       if (res.ok) {
         router.push("/home");
       } else {
@@ -41,9 +49,7 @@ export default function Register() {
   }
 
   return (
-    <div
-      className="min-h-screen w-full font-sans flex items-center justify-center relative bg-gradient-to-b from-blue-50 to-blue-100"
-    >
+    <div className="min-h-screen w-full font-sans flex items-center justify-center relative bg-gradient-to-b from-blue-50 to-blue-100">
       {/* Back Button */}
       <button
         onClick={() => router.back()}
@@ -54,17 +60,20 @@ export default function Register() {
 
       {/* Registration Card */}
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md border border-blue-100">
-        <h1 className="text-4xl font-extrabold text-blue-900 mb-8 text-center">
+        <h1 className="text-4xl font-extrabold text-blue-900 mb-6 text-center">
           Register
         </h1>
 
         {error && (
-          <p className="mb-4 text-red-600 text-center" aria-live="assertive">
+          <p
+            className="mb-4 text-red-600 text-center font-medium"
+            aria-live="assertive"
+          >
             {error}
           </p>
         )}
 
-        <form className="flex flex-col gap-6" onSubmit={handleRegister}>
+        <form onSubmit={handleRegister} className="flex flex-col gap-5">
           <input
             type="text"
             placeholder="Username"
@@ -74,16 +83,18 @@ export default function Register() {
             required
             autoComplete="username"
           />
+
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Password (min 5 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="p-3 rounded border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 text-blue-900"
             required
             autoComplete="new-password"
-            minLength={8}
+            minLength={5} // ✅ changed from 8 to 5
           />
+
           <input
             type="password"
             placeholder="Re-enter Password"
@@ -92,7 +103,7 @@ export default function Register() {
             className="p-3 rounded border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 text-blue-900"
             required
             autoComplete="new-password"
-            minLength={8}
+            minLength={5} // ✅ changed from 8 to 5
           />
 
           <button
