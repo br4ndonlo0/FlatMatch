@@ -2,13 +2,15 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import User from "@/models/User";
+import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
 	await connectDB();
 	try {
-		const body = await req.json();
+        const body = await req.json()
+		const cookieStore = cookies();
+        const username = (await cookieStore).get("username")?.value;
 		const {
-			username,
 			income,
 			citizenship,
 			householdSize,

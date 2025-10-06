@@ -232,35 +232,42 @@ export default function UserInfo() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Budget</label>
-          <select value={budget} onChange={e => setBudget(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
-            <option value="">Select...</option>
-            <option value="<$200k">Less than $200k</option>
-            <option value="$200k-$400k">$200k-$400k</option>
-            <option value="$400k-$600k">$400k-$600k</option>
-            <option value="$600k-$800k">$600k-$800k</option>
-            <option value=">$800k">More than $800k</option>
-          </select>
-        </div>
+          <input
+            type="text"
+            value={budget}
+            onChange={a => {
+              // Only allow numbers in input
+              if (a.target.value === "" || /^[0-9]+$/.test(a.target.value)) {
+                setBudget(a.target.value);
+              }
+            }}
+            placeholder="Enter Budget"
+            style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}
+          /></div>
         {/* Row 4 */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Preferred Area</label>
           <select value={area} onChange={e => setArea(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            <option value="Central">Central</option>
-            <option value="East">East</option>
-            <option value="West">West</option>
             <option value="North">North</option>
             <option value="North-East">North-East</option>
+            <option value="North-West">North-West</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="South">South</option>
+            <option value="South-East">South-East</option>
+            <option value="South-West">South-West</option>
+            <option value="Central">Central</option>
           </select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           <label style={{ fontWeight: 600, marginBottom: 12, fontSize: "1.1rem", color: "#3a4a2b" }}>Lease Duration</label>
           <select value={lease} onChange={e => setLease(e.target.value)} style={{ width: "260px", padding: "10px", fontSize: "1rem", borderRadius: 8, border: "1px solid #ccc", background: "#fff", color: "#000" }}>
             <option value="">Select...</option>
-            <option value="99 years">99 years</option>
-            <option value="60 years">60 years</option>
-            <option value="30 years">30 years</option>
-            <option value="Other">Other</option>
+           <option value="0-25">0-25</option>
+            <option value="25- 50">25- 50</option>
+            <option value="50-75">50-75</option>
+            <option value="75-99">75-99</option>
           </select>
         </div>
         {/* Save Button: bottom middle, spans both columns */}

@@ -30,11 +30,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
 
-    // 5) Success — return minimal user info (or set a cookie/JWT here)
-    return NextResponse.json({
+    // 5) Success — set username cookie and return minimal user info
+    const response = NextResponse.json({
       message: "Login successful.",
       user: { id: String(user._id), username: user.username },
     });
+    response.cookies.set("username", user.username, {
+      path: "/",
+      httpOnly: false,
+      sameSite: "lax"
+    });
+    return response;
   } catch (err: any) {
     console.error("Login error:", err);
     return NextResponse.json({ error: "Login failed." }, { status: 500 });
