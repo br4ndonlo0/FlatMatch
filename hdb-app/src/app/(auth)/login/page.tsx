@@ -20,8 +20,14 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        // ✅ save username for later use (so HomePage can display it)
+        localStorage.setItem("username", data.username ?? username);
+
+
+        // then redirect to home page
         router.push("/home");
-      } else {
+}
+ else {
         setError(data.error || data.message || "Login failed");
       }
     } catch (err) {
