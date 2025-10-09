@@ -9,7 +9,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "Resale HDB Finder",
+  title: "FlatMatch",
   description: "Find your dream resale HDB flat.", // Removed duplicate
 };
 
