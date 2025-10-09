@@ -22,6 +22,8 @@ export default function AccountPage() {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownBtnRef = useRef<HTMLButtonElement | null>(null);
 
+  const [userInfoOpen, setUserInfoOpen] = useState(false); // accordion toggle
+
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (
@@ -37,16 +39,7 @@ export default function AccountPage() {
     return () => window.removeEventListener("click", onClick);
   }, []);
 
-  const navOptions = [
-    { label: "UserInfo", href: "/userinfo" },
-    { label: "Recommended", href: "/recommended" },
-    { label: "HDB Listings", href: "/hdb-listings" },
-    { label: "Overview", href: "/overview" },
-    { label: "PriceTrend", href: "/pricetrend" },
-    { label: "Affordability", href: "/affordability" },
-    { label: "Amenities", href: "/amenities" },
-    { label: "Account", href: "/account" },
-  ];
+  const navOptions: never[] = []; // Removed all navigation options from the top bar and explicitly typed as 'never[]'
 
   const [user, setUser] = useState<UserDoc | null>(null);
   const [error, setError] = useState<string>("");
@@ -61,7 +54,7 @@ export default function AccountPage() {
           return;
         }
         const data = await res.json();
-        setUser(data.user ?? null); // IMPORTANT: API returns { user }
+        setUser(data.user ?? null);
       } catch {
         setError("Failed to fetch user info");
       }
@@ -123,28 +116,7 @@ export default function AccountPage() {
         </Link>
 
         <div style={{ display: "flex", gap: 16 }}>
-          {navOptions.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                color: "white",
-                fontWeight: item.href === "/account" ? 700 : 500,
-                opacity: item.href === "/account" ? 1 : 0.85,
-                textDecoration: "none",
-                transition: "opacity 0.15s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.opacity =
-                  item.href === "/account" ? "1" : "0.85")
-              }
-            >
-              {item.label}
-            </Link>
-          ))}
-
-          {/* Dropdown */}
+          {/* Account Dropdown */}
           <div style={{ position: "relative" }} ref={dropdownRef}>
             <button
               ref={dropdownBtnRef}
@@ -199,7 +171,6 @@ export default function AccountPage() {
                 </Link>
                 <button
                   onClick={() => {
-                    // implement your sign-out (clear cookie, redirect, etc.)
                     window.location.href = "/logout";
                   }}
                   style={{
@@ -239,42 +210,84 @@ export default function AccountPage() {
           Account
         </h1>
         <p style={{ color: "#4a648c", marginBottom: 24 }}>
-          Read-only view of your profile and preferences.
+          Manage your account settings. Click the section below to view your
+          stored user information.
         </p>
 
-        {/* Profile section */}
-        <Section title="Profile">
-          <KV label="Username" value={user.username ?? "—"} />
-          <KV label="Email" value={user.email ?? "—"} />
-          <KV label="Phone" value={user.phone ?? "—"} />
-          <KV label="Address" value={user.address ?? "—"} />
-        </Section>
+        {/* === USER INFO DROPDOWN SECTION === */}
+        <section
+          style={{
+            border: "1px solid #d0ddf5",
+            borderRadius: 10,
+            overflow: "hidden",
+            marginBottom: 20,
+            background: "#f9fbff",
+          }}
+        >
+          <button
+            onClick={() => setUserInfoOpen((v) => !v)}
+            aria-expanded={userInfoOpen}
+            aria-controls="user-info-disclosure"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              background: "#eef4ff",
+              color: "#123b91",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: 16,
+            }}
+          >
+            <span>User Info</span>
+            <span style={{ fontWeight: 900 }}>{userInfoOpen ? "▴" : "▾"}</span>
+          </button>
 
-        {/* Housing / preferences */}
-        <Section title="Housing Preferences">
-          <KV label="Citizenship" value={user.citizenship ?? "—"} />
-          <KV label="Household Size" value={user.householdSize ?? "—"} />
-          <KV label="Loan Type" value={user.loan ?? "—"} />
-          <KV label="Flat Type" value={user.flatType ?? "—"} />
-          <KV label="Preferred Area" value={user.area ?? "—"} />
-          <KV label="Lease Duration Left" value={user.leaseLeft ?? "—"} />
-        </Section>
+          <div
+            id="user-info-disclosure"
+            style={{
+              transition: "max-height 220ms ease",
+              maxHeight: userInfoOpen ? 900 : 0,
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "16px 18px" }}>
+              <Section title="Profile">
+                <KV label="Username" value={user.username ?? "—"} />
+                <KV label="Email" value={user.email ?? "—"} />
+                <KV label="Phone" value={user.phone ?? "—"} />
+                <KV label="Address" value={user.address ?? "—"} />
+              </Section>
 
-        {/* Financials */}
-        <Section title="Financials">
-          <KV label="Household Income (S$)" value={prettyNumber(user.income)} />
-          <KV label="Budget (S$)" value={prettyNumber(user.budget)} />
-        </Section>
+              <Section title="Housing Preferences">
+                <KV label="Citizenship" value={user.citizenship ?? "—"} />
+                <KV label="Household Size" value={user.householdSize ?? "—"} />
+                <KV label="Loan Type" value={user.loan ?? "—"} />
+                <KV label="Flat Type" value={user.flatType ?? "—"} />
+                <KV label="Preferred Area" value={user.area ?? "—"} />
+                <KV label="Lease Duration Left" value={user.leaseLeft ?? "—"} />
+              </Section>
+
+              <Section title="Financials">
+                <KV label="Household Income (S$)" value={prettyNumber(user.income)} />
+                <KV label="Budget (S$)" value={prettyNumber(user.budget)} />
+              </Section>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
 }
 
-/* ---------- Little presentational helpers ---------- */
+/* ---------- Helpers ---------- */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom: 28 }}>
-      <h2 style={{ fontSize: 18, color: "#123b91", margin: "8px 0 14px", fontWeight: 800 }}>
+    <section style={{ marginBottom: 18 }}>
+      <h2 style={{ fontSize: 16, color: "#123b91", margin: "0 0 10px", fontWeight: 800 }}>
         {title}
       </h2>
       <div
@@ -299,7 +312,7 @@ function KV({ label, value }: { label: string; value: React.ReactNode }) {
           border: "1px solid #d0ddf5",
           borderRadius: 8,
           padding: "10px 12px",
-          background: "#f9fbff",
+          background: "#fff",
           minHeight: 40,
           display: "flex",
           alignItems: "center",
