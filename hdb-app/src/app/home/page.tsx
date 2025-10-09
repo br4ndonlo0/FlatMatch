@@ -136,83 +136,92 @@ export default function HomePage() {
           </h1>
         </div>
 
-        {/* User menu */}
-        <div style={{ position: "relative" }}>
-          <button
-            ref={dropdownBtnRef}
-            aria-haspopup="menu"
-            aria-expanded={dropdownOpen}
-            onClick={() => setDropdownOpen((open) => !open)}
+        {/* User menu with improved icon inside the button */}
+        <button
+          ref={dropdownBtnRef}
+          aria-haspopup="menu"
+          aria-expanded={dropdownOpen}
+          onClick={() => setDropdownOpen((open) => !open)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "#ffffff",
+            borderRadius: "16px",
+            padding: "8px 20px",
+            fontWeight: 500,
+            color: BLUE,
+            border: "none",
+            cursor: "pointer",
+            minWidth: 120,
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            style={{ width: "20px", height: "20px" }}
+          >
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+          {username ?? "Loading..."}
+        </button>
+
+        {dropdownOpen && (
+          <div
+            ref={dropdownRef}
+            role="menu"
             style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "8px 20px",
-              fontWeight: 500,
-              color: BLUE,
-              border: "none",
-              cursor: "pointer",
-              minWidth: 120,
+              position: "absolute",
+              right: 0,
+              top: "110%",
+              background: "#fff",
+              borderRadius: "12px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+              border: "1px solid #e0e0e0",
+              minWidth: "200px",
+              zIndex: 40,
+              padding: "8px 0",
+              overflow: "hidden",
             }}
           >
-            {username ?? "Loading..."}
-          </button>
-
-          {dropdownOpen && (
             <div
-              ref={dropdownRef}
-              role="menu"
               style={{
-                position: "absolute",
-                right: 0,
-                top: "110%",
-                background: "#fff",
-                borderRadius: "12px",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                border: "1px solid #e0e0e0",
-                minWidth: "200px",
-                zIndex: 40,
-                padding: "8px 0",
-                overflow: "hidden",
+                padding: "12px 20px",
+                fontWeight: 700,
+                color: BLUE,
+                borderBottom: "1px solid #f0f0f0",
               }}
             >
-              <div
-                style={{
-                  padding: "12px 20px",
-                  fontWeight: 700,
-                  color: BLUE,
-                  borderBottom: "1px solid #f0f0f0",
-                }}
-              >
-                {username}
-              </div>
-              <button
-                role="menuitem"
-                style={menuItemStyle(BLUE)}
-                onClick={() => setDropdownOpen(false)}
-              >
-                Account
-              </button>
-              <Link
-                href="/userinfo"
-                role="menuitem"
-                style={{ ...menuItemStyle(BLUE), textDecoration: "none", display: "block" }}
-                onClick={() => setDropdownOpen(false)}
-              >
-                User Info
-              </Link>
-              <button
-                role="menuitem"
-                onClick={() => {
-                  setDropdownOpen(false);
-                  handleLogout();
-                }}
-                style={{ ...menuItemStyle(BLUE), fontWeight: 600 }}
-              >
-                Logout
-              </button>
+              {username}
             </div>
-          )}
-        </div>
+            <button
+              role="menuitem"
+              style={menuItemStyle(BLUE)}
+              onClick={() => setDropdownOpen(false)}
+            >
+              Account
+            </button>
+            <Link
+              href="/userinfo"
+              role="menuitem"
+              style={{ ...menuItemStyle(BLUE), textDecoration: "none", display: "block" }}
+              onClick={() => setDropdownOpen(false)}
+            >
+              User Info
+            </Link>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setDropdownOpen(false);
+                handleLogout();
+              }}
+              style={{ ...menuItemStyle(BLUE), fontWeight: 600 }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
 
 

@@ -288,26 +288,6 @@ export default function UserInfo() {
               padding: 24,
             }}
           >
-            {/* Helper chips */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-              {["Auto-save ready", "Secure form", "Editable anytime"].map((t) => (
-                <span
-                  key={t}
-                  style={{
-                    background: c.chip,
-                    border: `1px solid ${c.line}`,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    color: c.brand,
-                    fontWeight: 800,
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-
             {/* Status messages */}
             {isLoading && (
               <div
@@ -359,7 +339,7 @@ export default function UserInfo() {
             )}
 
             {/* Form */}
-<form onSubmit={onSubmit} noValidate style={{ display: "grid", gap: 20 }}>
+            <form onSubmit={onSubmit} noValidate style={{ display: "grid", gap: 20 }}>
               {/* Section: User Info */}
               <SectionTitle title="User Info" ink={c.brand} line={c.line} />
               <div className="gridTwoCols" style={gridTwoCols}>
