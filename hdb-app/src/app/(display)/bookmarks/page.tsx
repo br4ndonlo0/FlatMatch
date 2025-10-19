@@ -89,6 +89,10 @@ export default function BookmarksPage() {
           </svg>
         </button>
         <span className="text-2xl font-bold tracking-wide">HDBFinder</span>
+        {/* Home button top right */}
+        <Link href="/home" className="absolute right-6 top-1/2 -translate-y-1/2">
+          <button className="bg-white text-blue-900 font-bold px-5 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">Home</button>
+        </Link>
         {navOpen && (
           <div className="absolute left-0 top-full mt-2 w-56 bg-white text-blue-900 rounded-lg shadow-lg z-50 border border-blue-200 animate-fade-in">
             <Link href="/listing" className="block px-6 py-3 hover:bg-blue-50">View All Listings</Link>

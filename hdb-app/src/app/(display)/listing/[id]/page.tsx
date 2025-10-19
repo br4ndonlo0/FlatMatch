@@ -113,6 +113,30 @@ export default function ListingDetailPage() {
     setAdding(false);
   };
 
+  const handleRemoveBookmark = async () => {
+    const username = getUsername();
+    if (!username) return;
+    setAdding(true);
+    setError("");
+    const compositeKey = id;
+    try {
+      const res = await fetch("/api/bookmarks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, compositeKey })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsBookmarked(false);
+      } else {
+        setError(data.error || "Failed to remove bookmark");
+      }
+    } catch (e) {
+      setError("Failed to remove bookmark");
+    }
+    setAdding(false);
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#e0f2ff]">Loading...</div>;
   if (!record) return notFound();
 
@@ -130,6 +154,10 @@ export default function ListingDetailPage() {
           </svg>
         </button>
         <span className="text-2xl font-bold tracking-wide">HDBFinder</span>
+        {/* Home button top right */}
+        <Link href="/home" className="absolute right-6 top-1/2 -translate-y-1/2">
+          <button className="bg-white text-blue-900 font-bold px-5 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">Home</button>
+        </Link>
         {navOpen && (
           <div className="absolute left-0 top-full mt-2 w-56 bg-white text-blue-900 rounded-lg shadow-lg z-50 border border-blue-200 animate-fade-in">
             <Link href="/recomended" className="block px-6 py-3 hover:bg-blue-50">View Recommended</Link>
@@ -155,11 +183,21 @@ export default function ListingDetailPage() {
               }
               style={{ zIndex: 10 }}
               tabIndex={0}
-              aria-label={isBookmarked ? 'Bookmarked' : 'Add to Bookmarks'}
-              onClick={isBookmarked || adding ? undefined : handleAddBookmark}
-              disabled={isBookmarked || adding}
+              aria-label={isBookmarked ? 'Remove Bookmark' : 'Add to Bookmarks'}
+              onClick={
+                adding
+                  ? undefined
+                  : isBookmarked
+                    ? handleRemoveBookmark
+                    : handleAddBookmark
+              }
+              disabled={adding}
             >
-              {isBookmarked ? 'Bookmarked' : adding ? 'Adding...' : 'Add to Bookmarks'}
+              {adding
+                ? (isBookmarked ? 'Removing...' : 'Adding...')
+                : isBookmarked
+                  ? 'Bookmarked'
+                  : 'Add to Bookmarks'}
             </button>
           </div>
           {error && <div className="text-red-500 mb-2">{error}</div>}
@@ -182,7 +220,7 @@ export default function ListingDetailPage() {
           <Link href="/listing">
             <button className="px-6 py-3 bg-blue-900 text-white rounded-full font-semibold shadow hover:bg-blue-800 transition-colors">View Listings</button>
           </Link>
-          <Link href="/bookmarked">
+          <Link href="/bookmarks">
             <button className="px-6 py-3 bg-yellow-400 text-blue-900 rounded-full font-semibold shadow hover:bg-yellow-300 transition-colors">View Bookmarks</button>
           </Link>
         </div>
