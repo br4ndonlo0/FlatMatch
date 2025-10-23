@@ -147,7 +147,7 @@ export default function AccountPage() {
                 Edit Info
               </Link>
               <Link
-                href="/auth/reset/request"
+                href="/auth/change-password"
                 className="bg-white text-blue-800 border border-blue-300 px-5 py-2 rounded font-bold shadow hover:bg-blue-50"
               >
                 Change Password

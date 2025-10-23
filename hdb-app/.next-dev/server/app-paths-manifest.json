@@ -1,0 +1,4 @@
+{
+  "/api/reset/email/request/route": "app/api/reset/email/request/route.js",
+  "/page": "app/page.js"
+}
