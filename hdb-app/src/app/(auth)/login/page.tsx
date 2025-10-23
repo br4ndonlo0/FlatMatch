@@ -151,6 +151,11 @@ export default function LoginPage() {
               )}
             </button>
           </div>
+          <div className="text-right -mt-2 -mb-2">
+            <Link href="/auth/reset/request" className="text-blue-700 text-sm font-semibold hover:underline hover:text-blue-900">
+              Forgot password?
+            </Link>
+          </div>
           <button
             type="submit"
             className={`bg-blue-800 text-white px-6 py-3 rounded font-bold shadow transition transform hover:scale-[1.02] ${
