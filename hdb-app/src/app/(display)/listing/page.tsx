@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { useState as useClientState } from "react";
 
 interface HDBRecord {
@@ -15,9 +16,10 @@ interface HDBRecord {
 
 const PAGE_SIZE = 20;
 
-async function fetchHDBData(offset: number, limit: number): Promise<HDBRecord[]> {
+async function fetchHDBData(offset: number, limit: number, q?: string): Promise<HDBRecord[]> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-  const url = baseUrl + `/api/hdbdata?offset=${offset}&limit=${limit}`;
+  const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
+  const url = baseUrl + `/api/hdbdata?offset=${offset}&limit=${limit}${qParam}`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.success) {
@@ -35,6 +37,8 @@ const getUsername = () => {
 };
 
 export default function ListingPage() {
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") || "";
   const [records, setRecords] = useState<HDBRecord[]>([]);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -47,17 +51,24 @@ export default function ListingPage() {
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
-    const newRecords = await fetchHDBData(offset, PAGE_SIZE);
+    const newRecords = await fetchHDBData(offset, PAGE_SIZE, q.trim() || undefined);
     setRecords((prev) => [...prev, ...newRecords]);
     setOffset((prev) => prev + PAGE_SIZE);
     setHasMore(newRecords.length === PAGE_SIZE);
     setLoading(false);
-  }, [offset, loading, hasMore]);
+  }, [offset, loading, hasMore, q]);
+
+  // Reset when query changes
+  useEffect(() => {
+    setRecords([]);
+    setOffset(0);
+    setHasMore(true);
+  }, [q]);
 
   useEffect(() => {
     loadMore();
     // eslint-disable-next-line
-  }, []);
+  }, [q]);
 
   useEffect(() => {
     if (!loader.current) return;

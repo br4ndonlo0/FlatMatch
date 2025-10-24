@@ -9,6 +9,7 @@ export default function HomePage() {
   const [username, setUsername] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -368,6 +369,15 @@ export default function HomePage() {
                 border: "1px solid #cbd5e1",
                 outline: "none",
                 background: "#fff",
+                color: "#0f172a",
+              }}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const q = searchText.trim();
+                  router.push(q ? `/listing?q=${encodeURIComponent(q)}` : "/listing");
+                }
               }}
             />
             <button
@@ -381,7 +391,10 @@ export default function HomePage() {
                 fontSize: "1.05rem",
                 cursor: "pointer",
               }}
-              onClick={() => {}}
+              onClick={() => {
+                const q = searchText.trim();
+                router.push(q ? `/listing?q=${encodeURIComponent(q)}` : "/listing");
+              }}
             >
               Search
             </button>

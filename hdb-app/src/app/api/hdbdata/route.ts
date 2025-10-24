@@ -7,6 +7,7 @@ export async function GET(req: { url: string | URL; }) {
     const dataset_id = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc";
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const q = searchParams.get("q");
     if (id) {
       // Try to fetch a batch and find the record with the given id
       // (data.gov.sg API does not support direct id lookup, so we fetch a large batch and filter)
@@ -22,7 +23,8 @@ export async function GET(req: { url: string | URL; }) {
     } else {
       const limit = parseInt(searchParams.get("limit") || "20", 10);
       const offset = parseInt(searchParams.get("offset") || "0", 10);
-      const url = `https://data.gov.sg/api/action/datastore_search?resource_id=${dataset_id}&limit=${limit}&offset=${offset}`;
+      const qParam = q ? `&q=${encodeURIComponent(q)}` : "";
+      const url = `https://data.gov.sg/api/action/datastore_search?resource_id=${dataset_id}&limit=${limit}&offset=${offset}${qParam}`;
       const res = await fetch(url);
       const data = await res.json();
       return NextResponse.json({

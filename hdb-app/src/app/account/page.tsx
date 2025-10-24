@@ -60,7 +60,7 @@ export default function AccountPage() {
     <div className="min-h-screen w-full font-sans flex items-center justify-center relative bg-gradient-to-b from-blue-50 to-blue-100 p-6">
       {/* Home button */}
       <Link
-        href="/"
+        href="/home"
         className="absolute top-6 left-6 bg-blue-800 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition font-semibold"
       >
         ← Home
