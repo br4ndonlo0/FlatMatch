@@ -127,7 +127,7 @@ export default function HomePage() {
           for (const t of towns) grouped[t] = [];
           // results are already sorted by score desc on server
           for (const r of data.results as FeaturedItem[]) {
-            const town = (r.town || "").toString().toUpperCase();
+            const town = (r.town || "").toString().trim().toUpperCase();
             if (!(town in grouped)) continue; // ignore towns not in our list
             if (grouped[town].length < perTown) {
               grouped[town].push(r);

@@ -207,7 +207,7 @@ export default function FinderPage() {
     <div className="min-h-screen w-full" style={{ background: "#e0f2ff" }}>
       {/* Top Bar */}
       <div className="w-full bg-blue-900 text-white flex items-center px-6 py-4 relative shadow-md">
-        <span className="text-2xl font-bold tracking-wide">HDBFinder</span>
+        <span className="text-2xl font-bold tracking-wide">FlatMatch</span>
         <div className="ml-auto flex items-center gap-2">
           <Link href="/home" className="bg-white text-blue-900 font-bold px-4 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">
             Home
@@ -220,7 +220,7 @@ export default function FinderPage() {
 
       <main className="max-w-5xl mx-auto py-8 px-4 space-y-6">
         <header className="flex items-center justify-between">
-          <h1 className="text-3xl font-extrabold text-blue-900">HDB Finder</h1>
+          <h1 className="text-3xl font-extrabold text-blue-900">FlatMatch</h1>
         </header>
 
         {/* Town picker */}

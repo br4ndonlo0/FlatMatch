@@ -109,7 +109,7 @@ export default function ListingPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-2xl font-bold tracking-wide">HDBFinder</span>
+  <span className="text-2xl font-bold tracking-wide">FlatMatch</span>
         <Link href="/home" className="absolute right-6 top-1/2 -translate-y-1/2">
           <button className="bg-white text-blue-900 font-bold px-5 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">
             Home
