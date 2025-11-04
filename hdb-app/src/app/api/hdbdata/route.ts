@@ -114,18 +114,22 @@ export async function GET(req: { url: string | URL }) {
     }
 
     // MODE 3: generic page (used by listing/page.tsx)
-    const limit = parseInt(searchParams.get("limit") || "20", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
-    const q = searchParams.get("q") || "";
-    const sort = searchParams.get("sort") || "";
+  const limit = parseInt(searchParams.get("limit") || "20", 10);
+  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const q = searchParams.get("q") || "";
+  const sort = searchParams.get("sort") || "";
+  const townRaw = searchParams.get("town") || "";
+  const town = townRaw.trim().toUpperCase();
 
-    console.log("[hdbdata] Generic page fetch:", { q: q || undefined, offset, limit, sort });
+    console.log("[hdbdata] Generic page fetch:", { q: q || undefined, town: town || undefined, offset, limit, sort });
 
+    // If a town is provided, prefer using CKAN filters for an exact town match
     const url = buildUrl({
       limit,
       offset,
       ...(q ? { q } : {}),
       ...(sort ? { sort } : {}),
+      ...(town ? { filters: JSON.stringify({ town }) } : {}),
     });
 
     console.log("[hdbdata] Fetch:", url);

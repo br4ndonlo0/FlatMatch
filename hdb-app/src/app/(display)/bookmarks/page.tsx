@@ -10,6 +10,7 @@ interface Bookmark {
   month: string;
   resale_price: string;
   compositeKey: string;
+  score?: number;
 }
 
 // TODO: Replace with actual user context/session
@@ -41,7 +42,40 @@ export default function BookmarksPage() {
         const res = await fetch(`/api/bookmarks?username=${encodeURIComponent(username)}`);
         const data = await res.json();
         if (data.success) {
-          setBookmarks(data.bookmarks);
+          const bms: Bookmark[] = data.bookmarks || [];
+
+          // Score the bookmarks batch using the scoring API
+          try {
+            const scoreRes = await fetch("/api/score-batch", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ items: bms }),
+            });
+            const scoreData = await scoreRes.json();
+            if (scoreRes.ok && Array.isArray(scoreData?.results)) {
+              const scoreMap = new Map<string, number>();
+              for (const r of scoreData.results) {
+                if (r?.compositeKey) scoreMap.set(r.compositeKey, r.score);
+              }
+              // Attach scores by matching encoded composite keys
+              const withScores = bms.map((rec: Bookmark) => {
+                const keyEnc = [
+                  encodeURIComponent((rec.block || '').toString().trim().toUpperCase()),
+                  encodeURIComponent((rec.street_name || '').toString().trim().toUpperCase()),
+                  encodeURIComponent((rec.flat_type || '').toString().trim().toUpperCase()),
+                  encodeURIComponent((rec.month || '').toString().trim()),
+                  '0',
+                ].join("__");
+                const s = scoreMap.get(keyEnc);
+                return typeof s === "number" ? { ...rec, score: s } : rec;
+              });
+              setBookmarks(withScores);
+            } else {
+              setBookmarks(bms);
+            }
+          } catch {
+            setBookmarks(bms);
+          }
         } else {
           setError(data.error || "Failed to fetch bookmarks");
         }
@@ -88,7 +122,7 @@ export default function BookmarksPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-2xl font-bold tracking-wide">HDBFinder</span>
+  <span className="text-2xl font-bold tracking-wide">FlatMatch</span>
         {/* Home button top right */}
         <Link href="/home" className="absolute right-6 top-1/2 -translate-y-1/2">
           <button className="bg-white text-blue-900 font-bold px-5 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">Home</button>
@@ -118,9 +152,26 @@ export default function BookmarksPage() {
         {bookmarks.map((rec, i) => (
           <div
             key={rec.compositeKey + "__" + i}
-            className="w-3/4 rounded-3xl bg-white shadow-lg p-8 flex flex-col items-start border-2 border-blue-200 relative"
+            className="w-3/4 rounded-3xl bg-white shadow-lg p-8 pb-16 flex flex-col items-start border-2 border-blue-200 relative"
             style={{ minHeight: "16vh", minWidth: "75vw", maxWidth: "75vw" }}
           >
+            {/* Score pill top-right; larger to match Remove button visual weight */}
+            {typeof rec.score === 'number' ? (
+              <div
+                className="pill pill-score"
+                style={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  padding: '8px 12px', // bigger than default
+                  fontSize: '0.875rem', // ~14px (text-sm)
+                  fontWeight: 800,
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14l-5-4.87 6.91-1.01z"/></svg>
+                {rec.score.toFixed(1)}
+              </div>
+            ) : null}
             <Link
               href={`/listing/${encodeURIComponent(rec.compositeKey)}`}
               className="w-full flex flex-col items-start"

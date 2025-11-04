@@ -9,7 +9,6 @@ export default function HomePage() {
   const [username, setUsername] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
   type FeaturedItem = {
     town: string;
     block: string;
@@ -458,84 +457,18 @@ export default function HomePage() {
             Find your next HDB home
           </h2>
           <p style={{ marginTop: 6, color: "#334155" }}>
-            Search listings by town, flat type, lease, and price. Built for Singapore buyers and tenants.
+            Browse all current resale listings in Singapore. One place, every town.
           </p>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              maxWidth: 680,
-              marginTop: 16,
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Search for flats..."
-              aria-label="Search for flats"
-              style={{
-                flex: 1,
-                padding: "14px 20px",
-                fontSize: "1.05rem",
-                borderRadius: "14px 0 0 14px",
-                border: "1px solid #cbd5e1",
-                outline: "none",
-                background: "#fff",
-                color: "#0f172a",
-              }}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const q = searchText.trim();
-                  router.push(q ? `/listing?q=${encodeURIComponent(q)}` : "/listing");
-                }
-              }}
-            />
-            <button
-              style={{
-                background: BLUE,
-                color: "#fff",
-                border: "none",
-                borderRadius: "0 14px 14px 0",
-                padding: "14px 22px",
-                fontWeight: 700,
-                fontSize: "1.05rem",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                const q = searchText.trim();
-                router.push(q ? `/listing?q=${encodeURIComponent(q)}` : "/listing");
-              }}
-            >
-              Search
-            </button>
+          {/* Single big CTA: View all flats */}
+          <div style={{ marginTop: 16 }}>
+            <Link href="/listing" className="super-button super-button-xl" aria-label="View all HDB flats">
+              View all flats
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 8 }}><path d="M12 4l1.41 1.41L8.83 10H20v2H8.83l4.58 4.59L12 18l-8-8z"/></svg>
+            </Link>
           </div>
 
-          {/* Quick buttons */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              marginTop: 18,
-            }}
-          >
-            {[
-              { text: "View all Flats", href: "/listing" },
-              { text: "View recommended flats", href: "/recommended" },
-              { text: "View Bookmarked Flats", href: "/bookmarks" },
-            ].map((btn) => (
-              <Link
-                key={btn.href}
-                href={btn.href}
-                style={pillLinkStyle(BLUE)}
-              >
-                {btn.text}
-              </Link>
-            ))}
-          </div>
+          {/* Removed other quick buttons as requested */}
         </section>
 
         {/* Featured top-scored HDBs (grouped by town) */}
