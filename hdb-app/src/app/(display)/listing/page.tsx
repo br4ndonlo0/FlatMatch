@@ -436,7 +436,10 @@ export default function ListingPage() {
           const username = getUsername();
 
           const handleAddBookmark = async () => {
-            if (!username) return;
+            if (!username) {
+              alert("Please log in to use bookmarks.");
+              return;
+            }
             setAddingKey(compositeKey);
             const bookmark = {
               block: rec.block,
@@ -452,9 +455,15 @@ export default function ListingPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, bookmark }),
               });
-              const data = await res.json();
-              if (data.success) {
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.success) {
                 setBookmarkedKeys((prev) => [...prev, decodeURIComponent(compositeKey)]);
+              } else if (res.status === 409) {
+                // Already bookmarked – mark as bookmarked locally
+                setBookmarkedKeys((prev) => prev.includes(decodeURIComponent(compositeKey))
+                  ? prev
+                  : [...prev, decodeURIComponent(compositeKey)]
+                );
               }
             } catch {}
             setAddingKey(null);
