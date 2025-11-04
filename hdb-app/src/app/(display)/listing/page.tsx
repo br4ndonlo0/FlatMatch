@@ -92,6 +92,13 @@ export default function ListingPage() {
   ];
   const [scoreKey, setScoreKey] = useState<string>("");
   const [filtersVersion, setFiltersVersion] = useState(0);
+  const [filtersApplied, setFiltersApplied] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<{
+    rooms: string;
+    priceMinNum: number;
+    priceMaxNum: number;
+    minScoreNum: number;
+  }>({ rooms: "", priceMinNum: NaN, priceMaxNum: NaN, minScoreNum: NaN });
 
   const minScoreNum = useMemo(() => {
     const found = SCORE_OPTIONS.find((o) => o.key === scoreKey);
@@ -107,7 +114,28 @@ export default function ListingPage() {
     return Number.isFinite(n) ? n : NaN;
   }, [priceMax]);
 
+  // Gate: only allow applying filters when all fields are filled
+  const allFiltersFilled = useMemo(() => {
+    const hasRooms = !!rooms && rooms.trim().length > 0;
+    const hasMin = Number.isFinite(priceMinNum) && !Number.isNaN(priceMinNum);
+    const hasMax = Number.isFinite(priceMaxNum) && !Number.isNaN(priceMaxNum);
+    const hasScore = !!scoreKey && scoreKey.trim().length > 0;
+    return hasRooms && hasMin && hasMax && hasScore;
+  }, [rooms, priceMinNum, priceMaxNum, scoreKey]);
+
   const applyFilters = () => {
+    // Only apply when all fields are filled
+    if (!allFiltersFilled) {
+      return;
+    }
+    // Snapshot current inputs into applied filters and enable filtering
+    setAppliedFilters({
+      rooms,
+      priceMinNum,
+      priceMaxNum,
+      minScoreNum,
+    });
+    setFiltersApplied(true);
     // Reset list and trigger reload
     setRecords([]);
     setOffset(0);
@@ -147,39 +175,59 @@ export default function ListingPage() {
       }
     } catch {}
 
-    // Apply client-side filters: price range, rooms, min score
-    const filtered = newRecords.filter((rec) => {
-      // Rooms filter
-      if (rooms) {
-        const n = normalizeFlatType(rec.flat_type);
-        if (n !== rooms.toUpperCase()) return false;
-      }
-      // Price filter
-      const price = Number((rec.resale_price || "").toString().replace(/[^0-9.]/g, ""));
-      if (Number.isFinite(priceMinNum) && !Number.isNaN(priceMinNum)) {
-        if (!(price >= priceMinNum)) return false;
-      }
-      if (Number.isFinite(priceMaxNum) && !Number.isNaN(priceMaxNum)) {
-        if (!(price <= priceMaxNum)) return false;
-      }
-      // Score filter
-      if (Number.isFinite(minScoreNum) && !Number.isNaN(minScoreNum)) {
-        if (!(typeof (rec as any).score === "number" && (rec as any).score >= minScoreNum)) return false;
-      }
-      return true;
-    });
+    // Apply client-side filters only if user clicked "Apply filters"
+    const filtered = !filtersApplied
+      ? newRecords
+      : newRecords.filter((rec) => {
+          const { rooms: aRooms, priceMinNum: aMin, priceMaxNum: aMax, minScoreNum: aScore } = appliedFilters;
+          // Rooms filter
+          if (aRooms) {
+            const n = normalizeFlatType(rec.flat_type);
+            if (n !== aRooms.toUpperCase()) return false;
+          }
+          // Price filter
+          const price = Number((rec.resale_price || "").toString().replace(/[^0-9.]/g, ""));
+          if (Number.isFinite(aMin) && !Number.isNaN(aMin)) {
+            if (!(price >= aMin)) return false;
+          }
+          if (Number.isFinite(aMax) && !Number.isNaN(aMax)) {
+            if (!(price <= aMax)) return false;
+          }
+          // Score filter
+          if (Number.isFinite(aScore) && !Number.isNaN(aScore)) {
+            if (!(typeof (rec as any).score === "number" && (rec as any).score >= aScore)) return false;
+          }
+          return true;
+        });
 
     setRecords((prev) => [...prev, ...filtered]);
     setOffset((prev) => prev + PAGE_SIZE);
     setHasMore(newRecords.length === PAGE_SIZE);
     setLoading(false);
-  }, [offset, loading, hasMore, q, townParam, rooms, priceMinNum, priceMaxNum, minScoreNum]);
+  }, [offset, loading, hasMore, q, townParam, filtersApplied, appliedFilters]);
 
+  // Reset list when either search params or filtersVersion change
   useEffect(() => {
     setRecords([]);
     setOffset(0);
     setHasMore(true);
   }, [q, townParam, filtersVersion]);
+
+  // When search changes, show unfiltered listings until user applies filters again
+  useEffect(() => {
+    if (q || townParam) {
+      setFiltersApplied(false);
+    }
+  }, [q, townParam]);
+
+  // After applying filters (filtersVersion bump), kick off a load immediately
+  useEffect(() => {
+    // Only trigger for filter application, not initial mount
+    if (filtersApplied) {
+      loadMore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersVersion]);
 
   useEffect(() => {
     loadMore();
@@ -355,7 +403,13 @@ export default function ListingPage() {
             </Link>
             <button
               onClick={applyFilters}
-              className="bg-blue-900 text-white font-bold px-5 py-2 rounded-full shadow hover:bg-blue-800 transition-colors border-2 border-blue-900"
+              disabled={!allFiltersFilled}
+              className={
+                "font-bold px-5 py-2 rounded-full shadow transition-colors border-2 " +
+                (allFiltersFilled
+                  ? "bg-blue-900 text-white hover:bg-blue-800 border-blue-900"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300")
+              }
             >
               Apply filters
             </button>
