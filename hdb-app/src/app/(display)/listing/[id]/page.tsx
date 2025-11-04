@@ -1,10 +1,52 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { notFound, useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState as useClientState } from "react";
 import AffordabilityWidget from "@/components/AffordabilityWidget";
 import { parseRemainingLeaseYears, parseCurrencyToNumber } from "@/lib/affordability";
+
+// === Mapping libs (client only) ===
+import dynamic from "next/dynamic";
+import "leaflet/dist/leaflet.css";
+import type { LatLngExpression } from "leaflet";
+import { useMap } from "react-leaflet";
+
+// lazy-load react-leaflet to avoid SSR issues
+const MapContainer  = dynamic(() => import("react-leaflet").then(m => m.MapContainer),  { ssr: false });
+const TileLayer     = dynamic(() => import("react-leaflet").then(m => m.TileLayer),      { ssr: false });
+const Marker        = dynamic(() => import("react-leaflet").then(m => m.Marker),         { ssr: false });
+const Tooltip       = dynamic(() => import("react-leaflet").then(m => m.Tooltip),        { ssr: false });
+const Polyline      = dynamic(() => import("react-leaflet").then(m => m.Polyline),       { ssr: false });
+const CircleMarker  = dynamic(() => import("react-leaflet").then(m => m.CircleMarker),   { ssr: false });
+
+import L from "leaflet";
+// fix default marker icon paths in Next
+// @ts-ignore
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+// @ts-ignore
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+// @ts-ignore
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: (markerIcon2x as any)?.src ?? markerIcon2x,
+  iconUrl: (markerIcon as any)?.src ?? markerIcon,
+  shadowUrl: (markerShadow as any)?.src ?? markerShadow,
+});
+
+function makePin(color: string) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 25 41">
+      <path d="M12.5 0c6.9 0 12.5 5.6 12.5 12.5 0 9.4-12.5 28.5-12.5 28.5S0 21.9 0 12.5C0 5.6 5.6 0 12.5 0z" fill="${color}"/>
+      <circle cx="12.5" cy="12.5" r="5.5" fill="white"/>
+    </svg>`;
+  return new L.Icon({
+    iconUrl: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [1, -34],
+  });
+}
 
 interface HDBRecord {
   _id: string | number;
@@ -54,6 +96,90 @@ async function getHDBRecordByCompositeKey(key: string) {
   return Array.isArray(data?.records) ? data.records[0] ?? null : null;
 }
 
+// ===== Map helpers & server APIs =====
+type NearbyStop = { id: string; name: string; lat: number; lon: number; road?: string };
+type GenericAmenity = { id: string; name: string; lat: number; lon: number; type: string };
+
+/** Local-first geocoder via your CSV; optional OneMap fallback if you created it */
+async function geocodeLocalFirst(block: string, street: string) {
+  try {
+    const r = await fetch(`/api/coords?block=${encodeURIComponent(block)}&street=${encodeURIComponent(street)}`);
+    if (r.ok) {
+      const j = await r.json();
+      if (j?.result) return j.result as { lat: number; lon: number };
+    }
+  } catch {}
+  try {
+    const addr = `${block} ${street}, Singapore`;
+    const r2 = await fetch(`/api/onemap/search?query=${encodeURIComponent(addr)}`);
+    if (r2.ok) {
+      const j2 = await r2.json();
+      if (j2?.result) return j2.result as { lat: number; lon: number };
+    }
+  } catch {}
+  return null;
+}
+
+// OneMap transport + routing (server proxies)
+async function fetchNearbyTransportServer(lat: number, lon: number, radius = 1000) {
+  const r = await fetch(`/api/onemap/nearby?lat=${lat}&lon=${lon}&radius=${radius}`);
+  if (!r.ok) return { bus: [], mrt: [] };
+  return (await r.json()) as { bus: NearbyStop[]; mrt: NearbyStop[] };
+}
+async function fetchWalkRouteServer(from: {lat:number;lon:number}, to: {lat:number;lon:number}) {
+  const r = await fetch(`/api/onemap/route?start=${from.lat},${from.lon}&end=${to.lat},${to.lon}&type=walk`);
+  if (!r.ok) return { poly: [], totalTimeSec: null, totalDistM: null };
+  return await r.json();
+}
+
+// data.gov (local GeoJSON files in /data), normalized by your /api/sg/amenities route
+async function fetchDataGovAmenitiesServer(type: string, lat: number, lon: number, radius = 1000) {
+  const r = await fetch(`/api/sg/amenities?type=${encodeURIComponent(type)}&lat=${lat}&lon=${lon}&radius=${radius}`);
+  if (!r.ok) return { features: [] as GenericAmenity[] };
+  return (await r.json()) as { features: GenericAmenity[] };
+}
+
+// Haversine (meters)
+function haversineMeters(lat1:number, lon1:number, lat2:number, lon2:number) {
+  const toRad = (d:number) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// recenter helper
+function RecenterOnUnit({ center, zoom = 17 }: { center: [number, number] | null; zoom?: number }) {
+  const map = useMap();
+  useEffect(() => { if (center) map.setView(center, zoom, { animate: true }); }, [center, zoom, map]);
+  return null;
+}
+
+// colors (malls & carparks skipped)
+const COLOR = {
+  bus: "#2E7D32",
+  mrt: "#D32F2F",
+  Schools: "#1565C0",
+  Clinics: "#EF6C00",
+  Supermarkets: "#1B5E20",
+  HawkerCentres: "#795548",
+  Parks: "#2E7D32",
+  Libraries: "#00838F",
+  CommunityClubs: "#F9A825",
+} as const;
+
+// icons for amenity pins (MRT has its own red pin)
+const ICONS = {
+  Schools: makePin(COLOR.Schools),
+  Clinics: makePin(COLOR.Clinics),
+  Supermarkets: makePin(COLOR.Supermarkets),
+  HawkerCentres: makePin(COLOR.HawkerCentres),
+  Parks: makePin(COLOR.Parks),
+  Libraries: makePin(COLOR.Libraries),
+  CommunityClubs: makePin(COLOR.CommunityClubs),
+};
+
 export default function ListingDetailPage() {
   const params = useParams();
   const id =
@@ -75,8 +201,30 @@ export default function ListingDetailPage() {
   const router = useRouter();
 
   const getUsernameNow = () => getUsername();
-  // Capture username at render time to determine guest vs logged-in state for the popup
   const usernameNow = getUsernameNow();
+
+  // === Map & amenities state ===
+  const [amenity, setAmenity] = useState<
+    "Transport" | "Schools" | "Clinics" | "Supermarkets" | "HawkerCentres" | "Parks" | "Libraries" | "CommunityClubs"
+  >("Transport");
+
+  const [unitPos, setUnitPos] = useState<{lat:number;lon:number}|null>(null);
+  const [busStops, setBusStops] = useState<NearbyStop[]>([]);
+  const [mrtStops, setMrtStops] = useState<NearbyStop[]>([]);
+  const [themeFeatures, setThemeFeatures] = useState<GenericAmenity[]>([]);
+  const [routeLine, setRouteLine] = useState<[number,number][]>([]);
+  const [selected, setSelected] = useState<{id:string; name:string; type:string; timeMin:number; distM:number} | null>(null);
+
+  // loading flags for "no amenities within 1km" alert
+  const [transportLoaded, setTransportLoaded] = useState(false);
+  const [amenityLoaded, setAmenityLoaded] = useState(false);
+
+  const mapCenter = useMemo<LatLngExpression>(() => {
+    if (unitPos) return [unitPos.lat, unitPos.lon] as LatLngExpression;
+    return [1.3521, 103.8198] as LatLngExpression; // SG fallback
+  }, [unitPos]);
+
+  const mrtIcon = useMemo(() => makePin(COLOR.mrt), []);
 
   useEffect(() => {
     (async () => {
@@ -95,8 +243,64 @@ export default function ListingDetailPage() {
           }
         } catch {}
       }
+
+      // Map bootstrap
+      if (rec) {
+        const pos = await geocodeLocalFirst(rec.block, rec.street_name);
+        if (pos) {
+          setUnitPos(pos);
+          try {
+            const t = await fetchNearbyTransportServer(pos.lat, pos.lon, 1000);
+            const within1km = (s: NearbyStop) => {
+              try { return haversineMeters(pos.lat, pos.lon, s.lat, s.lon) <= 1000; }
+              catch { return true; }
+            };
+            setBusStops((t.bus || []).filter(within1km));
+            setMrtStops((t.mrt || []).filter(within1km));
+          } finally {
+            setTransportLoaded(true);
+          }
+        } else {
+          setTransportLoaded(true);
+          setError("Could not geocode flat address from local dataset or OneMap.");
+        }
+      }
     })();
   }, [id]);
+
+  // Fetch data.gov amenities when amenity changes (non-transport)
+  useEffect(() => {
+    (async () => {
+      if (!unitPos) return;
+      if (amenity === "Transport") {
+        setThemeFeatures([]);
+        setAmenityLoaded(false);
+        return;
+      }
+      setAmenityLoaded(false);
+      const res = await fetchDataGovAmenitiesServer(amenity, unitPos.lat, unitPos.lon, 1000);
+      const feats = (res.features || []).filter(f => haversineMeters(unitPos.lat, unitPos.lon, f.lat, f.lon) <= 1000);
+      setThemeFeatures(feats);
+      setRouteLine([]);
+      setSelected(null);
+      setAmenityLoaded(true);
+    })();
+  }, [amenity, unitPos]);
+
+  async function computeAndShowRoute(target: {id:string; name:string; lat:number; lon:number}, type: string) {
+    if (!unitPos) return;
+    const r = await fetchWalkRouteServer(unitPos, { lat: target.lat, lon: target.lon });
+    if (r.totalTimeSec != null && r.totalDistM != null) {
+      setSelected({
+        id: target.id,
+        name: target.name,
+        type,
+        timeMin: Math.round(r.totalTimeSec / 60),
+        distM: Math.round(r.totalDistM),
+      });
+    }
+    setRouteLine(r.poly || []);
+  }
 
   const handleAddBookmark = async () => {
     if (!record) return;
@@ -162,6 +366,14 @@ export default function ListingDetailPage() {
     return <div className="min-h-screen flex items-center justify-center bg-[#e0f2ff]">Loading...</div>;
   if (!record) return notFound();
 
+  // ===== no-results alert logic =====
+  const transportCount = busStops.length + mrtStops.length;
+  const nonTransportCount = themeFeatures.length;
+  const showNoResults =
+    unitPos &&
+    ((amenity === "Transport" && transportLoaded && transportCount === 0) ||
+     (amenity !== "Transport" && amenityLoaded && nonTransportCount === 0));
+
   return (
     <div style={{ background: "#e0f2ff", minHeight: "100vh", width: "100%" }}>
       {/* Top Bar with Dropdown Navigation - sticky at top of viewport */}
@@ -200,6 +412,7 @@ export default function ListingDetailPage() {
       </div>
 
       <div className="flex flex-col items-center justify-center py-12 px-4">
+        {/* Details Card */}
         <div className="bg-white rounded-3xl shadow-xl p-10 w-full max-w-2xl border-2 border-blue-200 relative mt-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-4xl font-bold text-blue-900">
@@ -260,6 +473,150 @@ export default function ListingDetailPage() {
           </div>
         </div>
 
+        {/* ===== INTERACTIVE MAP (between details card and buttons) ===== */}
+        <div className="w-full max-w-5xl mt-10">
+          {/* Header row(s) + Route card side-by-side (desktop); aligns top with "Amenity type" and bottom with nearby header */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] grid-rows-[auto_auto] gap-3 items-start">
+            {/* Amenity selector (row 1, col 1) */}
+            <div className="mb-1">
+              <label className="block font-semibold text-blue-900 mb-1">Amenity type</label>
+              <select
+                className="px-3 py-2 border border-blue-300 rounded-lg bg-white text-blue-900"
+                value={amenity}
+                onChange={(e) => setAmenity(e.target.value as any)}
+              >
+                <option value="Transport">Transport (MRT & Bus)</option>
+                <option value="Schools">Schools</option>
+                <option value="Clinics">Clinics / Polyclinics</option>
+                <option value="Supermarkets">Supermarkets</option>
+                <option value="HawkerCentres">Hawker Centres</option>
+                <option value="Parks">Parks</option>
+                <option value="Libraries">Libraries</option>
+                <option value="CommunityClubs">Community Clubs</option>
+              </select>
+            </div>
+
+            {/* Route Summary card (row-span 2, col 2) */}
+            <div className="md:row-span-2 md:col-start-2">
+              <div className="h-full min-h-[92px] rounded-2xl border-2 border-blue-200 bg-white shadow px-4 py-3">
+                <div className="text-blue-900 font-semibold">Route summary</div>
+                {selected ? (
+                  <div className="mt-1 text-blue-900">
+                    <div className="font-medium truncate">{selected.name}</div>
+                    <div className="text-sm opacity-70 mb-1">{selected.type}</div>
+                    <div>
+                      Walk: <span className="font-semibold">{selected.timeMin} min</span>
+                      {" • "}
+                      <span className="font-semibold">{selected.distM} m</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-blue-900/80">Click any marker to see walking time & distance.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Nearby header (row 2, col 1) */}
+            <h2 className="text-2xl font-bold text-blue-900 mb-1">
+              {amenity === "Transport" ? "Nearby Transport (≤ 1 km)" : "Nearby Amenities (≤ 1 km)"}
+            </h2>
+          </div>
+
+          {/* No-results callout */}
+          {showNoResults && (
+            <div className="mt-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+              No <span className="font-semibold">{amenity}</span> found within 1 km of this flat.
+            </div>
+          )}
+
+          <div className="rounded-2xl overflow-hidden border-2 border-blue-200 shadow">
+            <div style={{ height: 460, width: "100%", background: "#cfe8ff" }}>
+              {typeof window !== "undefined" && (
+                <MapContainer
+                  key={unitPos ? `${unitPos.lat},${unitPos.lon}:${amenity}` : `init:${amenity}`}
+                  center={mapCenter}
+                  zoom={16}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  {/* Recenter on unit */}
+                  {unitPos && <RecenterOnUnit center={[unitPos.lat, unitPos.lon]} zoom={17} />}
+
+                  {/* OneMap raster tiles */}
+                  <TileLayer
+                    attribution="&copy; OneMap, SLA"
+                    url="https://www.onemap.gov.sg/maps/tiles/Original/{z}/{x}/{y}.png"
+                  />
+
+                  {/* Unit marker */}
+                  {unitPos && (
+                    <Marker position={[unitPos.lat, unitPos.lon]}>
+                      <Tooltip direction="top" offset={[0, -10]} permanent>
+                        {record.block} {record.street_name}
+                      </Tooltip>
+                    </Marker>
+                  )}
+
+                  {/* Transport (bus: circle markers, MRT: red pin markers) */}
+                  {amenity === "Transport" && (
+                    <>
+                      {busStops.map((b) => (
+                        <CircleMarker
+                          key={`bus-${b.id}`}
+                          center={[b.lat, b.lon]}
+                          radius={5}
+                          pathOptions={{ color: COLOR.bus, fillColor: COLOR.bus, fillOpacity: 0.9 }}
+                          eventHandlers={{ click: () => computeAndShowRoute({ id: b.id, name: b.name, lat: b.lat, lon: b.lon }, "Bus Stop") }}
+                        >
+                          <Tooltip>{`Bus stop: ${b.name}${b.road ? ` (${b.road})` : ""}`}</Tooltip>
+                        </CircleMarker>
+                      ))}
+
+                      {mrtStops.map((m) => (
+                        <Marker
+                          key={`mrt-${m.id}`}
+                          position={[m.lat, m.lon]}
+                          icon={mrtIcon}
+                          eventHandlers={{ click: () => computeAndShowRoute({ id: m.id, name: m.name, lat: m.lat, lon: m.lon }, "MRT Station") }}
+                        >
+                          <Tooltip direction="top">
+                            <div className="text-sm">
+                              <div className="font-semibold">{m.name}</div>
+                              <div>Click to show walking route</div>
+                            </div>
+                          </Tooltip>
+                        </Marker>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Other amenities via data.gov (pin markers like MRT) */}
+                  {amenity !== "Transport" && themeFeatures.map((f) => (
+                    <Marker
+                      key={`${amenity}-${f.id}`}
+                      position={[f.lat, f.lon]}
+                      icon={ICONS[amenity] ?? undefined}
+                      eventHandlers={{ click: () => computeAndShowRoute(f, amenity) }}
+                    >
+                      <Tooltip>{f.name}</Tooltip>
+                    </Marker>
+                  ))}
+
+                  {/* Route polyline (from last click) */}
+                  {routeLine.length > 0 && (
+                    <Polyline positions={routeLine as unknown as LatLngExpression[]} />
+                  )}
+                </MapContainer>
+              )}
+            </div>
+          </div>
+
+          <p className="text-sm text-blue-900 mt-2">
+            Data sources: OneMap tiles & Nearby (MRT/Bus); data.gov.sg (local GeoJSON for other amenities); OneMap walking route/time.
+          </p>
+        </div>
+        {/* ===== END MAP ===== */}
+
+        {/* Buttons (kept after the map) */}
         <div className="flex justify-center gap-8 mt-8">
           <Link href="/listing">
             <button className="px-6 py-3 bg-blue-900 text-white rounded-full font-semibold shadow hover:bg-blue-800 transition-colors">
@@ -274,12 +631,11 @@ export default function ListingDetailPage() {
         </div>
       </div>
 
-      {/* Affordability Error Popup */}
+      {/* Affordability Error Popup (preserved, incl. guest back-navigation) */}
       {showAffordabilityError && (
         <div
           className="fixed inset-0 bg-blue-900 bg-opacity-20 flex items-center justify-center z-50"
           onClick={() => {
-            // For guests, navigate back to previous page. For logged-in users, just close the popup.
             if (!usernameNow) router.back();
             else setShowAffordabilityError(false);
           }}
