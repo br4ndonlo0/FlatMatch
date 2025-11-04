@@ -115,25 +115,31 @@ export default function ListingPage() {
     return Number.isFinite(n) ? n : NaN;
   }, [priceMax]);
 
-  // Gate: only allow applying filters when all fields are filled
+  // Determine whether any filter has been provided (used for minor UX hints).
+  // We still allow Apply to be clicked even when some fields are missing; missing
+  // filters will simply be ignored.
   const allFiltersFilled = useMemo(() => {
     const hasRooms = !!rooms && rooms.trim().length > 0;
     const hasMin = Number.isFinite(priceMinNum) && !Number.isNaN(priceMinNum);
     const hasMax = Number.isFinite(priceMaxNum) && !Number.isNaN(priceMaxNum);
     const hasScore = !!scoreKey && scoreKey.trim().length > 0;
-    return hasRooms && hasMin && hasMax && hasScore;
+    return hasRooms || hasMin || hasMax || hasScore;
   }, [rooms, priceMinNum, priceMaxNum, scoreKey]);
 
   const applyFilters = () => {
-    // Only apply when all fields are filled
-    if (!allFiltersFilled) {
-      return;
+    // Snapshot current inputs into applied filters and enable filtering.
+    // If price min/max are invalid (min > max) we ignore the price filter.
+    let effectiveMin = Number.isFinite(priceMinNum) ? priceMinNum : NaN;
+    let effectiveMax = Number.isFinite(priceMaxNum) ? priceMaxNum : NaN;
+    if (Number.isFinite(effectiveMin) && Number.isFinite(effectiveMax) && effectiveMin > effectiveMax) {
+      // drop price filter when range is invalid
+      effectiveMin = NaN;
+      effectiveMax = NaN;
     }
-    // Snapshot current inputs into applied filters and enable filtering
     setAppliedFilters({
       rooms,
-      priceMinNum,
-      priceMaxNum,
+      priceMinNum: effectiveMin,
+      priceMaxNum: effectiveMax,
       minScoreNum,
     });
     setFiltersApplied(true);
@@ -147,67 +153,76 @@ export default function ListingPage() {
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
-    const newRecords = await fetchHDBData(offset, PAGE_SIZE, q.trim() || undefined, (townParam || "").trim() || undefined);
-
-    // Fetch scores for this batch
     try {
-      const scoreRes = await fetch("/api/score-batch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ items: newRecords }),
-      });
-      const scoreData = await scoreRes.json();
-      if (scoreRes.ok && Array.isArray(scoreData?.results)) {
-        const scoreMap = new Map<string, { score: number; affordabilityScore?: number }>();
-        for (const r of scoreData.results) {
-          if (r?.compositeKey) scoreMap.set(r.compositeKey, { score: r.score, affordabilityScore: r.affordabilityScore });
-        }
-        for (const rec of newRecords) {
-          const compositeKey = [
-            encodeURIComponent(rec.block),
-            encodeURIComponent(rec.street_name),
-            encodeURIComponent(rec.flat_type),
-            encodeURIComponent(rec.month),
-            "0",
-          ].join("__");
-          const data = scoreMap.get(compositeKey);
-          if (data) {
-            (rec as any).score = data.score;
-            (rec as any).affordabilityScore = data.affordabilityScore;
-          }
-        }
-      }
-    } catch {}
+      const newRecords = await fetchHDBData(offset, PAGE_SIZE, q.trim() || undefined, (townParam || "").trim() || undefined);
 
-    // Apply client-side filters only if user clicked "Apply filters"
-    const filtered = !filtersApplied
-      ? newRecords
-      : newRecords.filter((rec) => {
-          const { rooms: aRooms, priceMinNum: aMin, priceMaxNum: aMax, minScoreNum: aScore } = appliedFilters;
-          // Rooms filter
-          if (aRooms) {
-            const n = normalizeFlatType(rec.flat_type);
-            if (n !== aRooms.toUpperCase()) return false;
-          }
-          // Price filter
-          const price = Number((rec.resale_price || "").toString().replace(/[^0-9.]/g, ""));
-          if (Number.isFinite(aMin) && !Number.isNaN(aMin)) {
-            if (!(price >= aMin)) return false;
-          }
-          if (Number.isFinite(aMax) && !Number.isNaN(aMax)) {
-            if (!(price <= aMax)) return false;
-          }
-          // Score filter
-          if (Number.isFinite(aScore) && !Number.isNaN(aScore)) {
-            if (!(typeof (rec as any).score === "number" && (rec as any).score >= aScore)) return false;
-          }
-          return true;
+      // Fetch scores for this batch
+      try {
+        const scoreRes = await fetch("/api/score-batch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items: newRecords }),
         });
+        const scoreData = await scoreRes.json();
+        if (scoreRes.ok && Array.isArray(scoreData?.results)) {
+          const scoreMap = new Map<string, { score: number; affordabilityScore?: number }>();
+          for (const r of scoreData.results) {
+            if (r?.compositeKey) scoreMap.set(r.compositeKey, { score: r.score, affordabilityScore: r.affordabilityScore });
+          }
+          for (const rec of newRecords) {
+            const compositeKey = [
+              encodeURIComponent(rec.block),
+              encodeURIComponent(rec.street_name),
+              encodeURIComponent(rec.flat_type),
+              encodeURIComponent(rec.month),
+              "0",
+            ].join("__");
+            const data = scoreMap.get(compositeKey);
+            if (data) {
+              (rec as any).score = data.score;
+              (rec as any).affordabilityScore = data.affordabilityScore;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("score-batch error:", err);
+      }
 
-    setRecords((prev) => [...prev, ...filtered]);
-    setOffset((prev) => prev + PAGE_SIZE);
-    setHasMore(newRecords.length === PAGE_SIZE);
-    setLoading(false);
+      // Apply client-side filters only if user clicked "Apply filters"
+      const filtered = !filtersApplied
+        ? newRecords
+        : newRecords.filter((rec) => {
+            const { rooms: aRooms, priceMinNum: aMin, priceMaxNum: aMax, minScoreNum: aScore } = appliedFilters;
+            // Rooms filter
+            if (aRooms) {
+              const n = normalizeFlatType(rec.flat_type);
+              if (n !== aRooms.toUpperCase()) return false;
+            }
+            // Price filter
+            const price = Number((rec.resale_price || "").toString().replace(/[^0-9.]/g, ""));
+            if (Number.isFinite(aMin) && !Number.isNaN(aMin)) {
+              if (!(price >= aMin)) return false;
+            }
+            if (Number.isFinite(aMax) && !Number.isNaN(aMax)) {
+              if (!(price <= aMax)) return false;
+            }
+            // Score filter
+            if (Number.isFinite(aScore) && !Number.isNaN(aScore)) {
+              if (!(typeof (rec as any).score === "number" && (rec as any).score >= aScore)) return false;
+            }
+            return true;
+          });
+
+      setRecords((prev) => [...prev, ...filtered]);
+      setOffset((prev) => prev + PAGE_SIZE);
+      setHasMore(newRecords.length === PAGE_SIZE);
+    } catch (err) {
+      console.error("loadMore error:", err);
+      // Stop further attempts on fatal errors
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
   }, [offset, loading, hasMore, q, townParam, filtersApplied, appliedFilters]);
 
   // Reset list when either search params or filtersVersion change
@@ -407,12 +422,8 @@ export default function ListingPage() {
             </Link>
             <button
               onClick={applyFilters}
-              disabled={!allFiltersFilled}
               className={
-                "font-bold px-5 py-2 rounded-full shadow transition-colors border-2 " +
-                (allFiltersFilled
-                  ? "bg-blue-900 text-white hover:bg-blue-800 border-blue-900"
-                  : "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300")
+                "font-bold px-5 py-2 rounded-full shadow transition-colors border-2 bg-blue-900 text-white hover:bg-blue-800 border-blue-900"
               }
             >
               Apply filters

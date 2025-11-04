@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState as useClientState } from "react";
 import AffordabilityWidget from "@/components/AffordabilityWidget";
@@ -72,6 +72,11 @@ export default function ListingDetailPage() {
     }
     return "";
   };
+  const router = useRouter();
+
+  const getUsernameNow = () => getUsername();
+  // Capture username at render time to determine guest vs logged-in state for the popup
+  const usernameNow = getUsernameNow();
 
   useEffect(() => {
     (async () => {
@@ -272,29 +277,35 @@ export default function ListingDetailPage() {
       {/* Affordability Error Popup */}
       {showAffordabilityError && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setShowAffordabilityError(false)}
+          className="fixed inset-0 bg-blue-900 bg-opacity-20 flex items-center justify-center z-50"
+          onClick={() => {
+            // For guests, navigate back to previous page. For logged-in users, just close the popup.
+            if (!usernameNow) router.back();
+            else setShowAffordabilityError(false);
+          }}
         >
           <div
-            className="bg-white rounded-2xl p-8 max-w-md shadow-2xl border-2 border-red-400"
+            className="bg-white rounded-2xl p-8 max-w-md shadow-2xl border-2 border-blue-400"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-red-500 text-4xl">⚠️</span>
-              <h2 className="text-2xl font-bold text-red-600">Missing Information</h2>
+              <span className="text-blue-700 text-4xl">⚠️</span>
+              <h2 className="text-2xl font-bold text-blue-900">
+                {usernameNow ? "Missing Information" : "Access denied"}
+              </h2>
             </div>
-            <p className="text-gray-700 mb-6 text-lg">
-              Fill up userinfo for affordability score!
+            <p className="text-blue-900 mb-6 text-lg">
+              {usernameNow
+                ? "Fill up userinfo for affordability score!"
+                : "You cannot view unit affordability as a guest. Please log in first."}
             </p>
             <div className="flex gap-4">
-              <Link href="/userinfo" className="flex-1">
-                <button className="w-full px-6 py-3 bg-blue-900 text-white rounded-full font-semibold shadow hover:bg-blue-800 transition-colors">
-                  Go to User Info
-                </button>
-              </Link>
               <button
-                onClick={() => setShowAffordabilityError(false)}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-full font-semibold shadow hover:bg-gray-300 transition-colors"
+                onClick={() => {
+                  if (!usernameNow) router.back();
+                  else setShowAffordabilityError(false);
+                }}
+                className="w-full px-6 py-3 bg-blue-900 text-white rounded-full font-semibold shadow hover:bg-blue-800 transition-colors"
               >
                 Close
               </button>
