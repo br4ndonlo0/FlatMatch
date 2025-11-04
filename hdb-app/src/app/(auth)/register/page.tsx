@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 export default function Register() {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rePassword, setRePassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,16 +21,6 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
-    const emailStr = email.trim().toLowerCase();
-    if (!emailStr) {
-      setError("Email is required.");
-      return;
-    }
-    if (!/.+@.+\..+/.test(emailStr)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
     if (password.length < 5) {
       setError("Password must be at least 5 characters long.");
       return;
@@ -47,7 +36,7 @@ export default function Register() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email: emailStr, password, rePassword }),
+        body: JSON.stringify({ username, password, rePassword }),
       });
 
       const data = await res.json();
@@ -107,16 +96,6 @@ export default function Register() {
         )}
 
         <form onSubmit={handleRegister} className="flex flex-col gap-5">
-          {/* Email */}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="p-3 rounded border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 text-blue-900"
-            required
-            autoComplete="email"
-          />
 
           {/* Username */}
           <input

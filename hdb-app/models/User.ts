@@ -4,11 +4,11 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, lowercase: true, trim: true },
   email: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
+    unique: false,
     lowercase: true,
     trim: true,
-    match: /.+@.+\..+/, // basic email format check
+    match: /.+@.+\..+/, // optional email format check
   },
   password: { type: String, required: true },
   income: { type: String },
