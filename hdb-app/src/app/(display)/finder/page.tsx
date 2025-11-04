@@ -4,33 +4,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { parseRemainingLeaseYears } from "@/lib/affordability";
-
-// Helper: Check if remaining lease matches user preference
-function matchesLeasePreference(remaining_lease: string | undefined, leaseLeft: string | undefined): boolean {
-  // If no preference set, show all flats
-  if (!leaseLeft) return true;
-  
-  // If no remaining_lease data, exclude the flat
-  if (!remaining_lease) return false;
-  
-  const years = parseRemainingLeaseYears(remaining_lease);
-  if (years === undefined) return false;
-  
-  // Match against preference ranges
-  switch (leaseLeft) {
-    case "0-25":
-      return years >= 0 && years <= 25;
-    case "25-50":
-      return years > 25 && years <= 50;
-    case "50-75":
-      return years > 50 && years <= 75;
-    case "75-99":
-      return years > 75 && years <= 99;
-    default:
-      return true; // Unknown preference, show all
-  }
-}
 
 type RawResult = {
   town: string;
@@ -369,9 +342,6 @@ export default function FinderPage() {
         <div className="ml-auto flex items-center gap-2">
           <Link href="/home" className="bg-white text-blue-900 font-bold px-4 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">
             Home
-          </Link>
-          <Link href="/listing" className="bg-white text-blue-900 font-bold px-4 py-2 rounded-full shadow hover:bg-blue-100 transition-colors border-2 border-blue-900">
-            View Listings
           </Link>
         </div>
       </div>

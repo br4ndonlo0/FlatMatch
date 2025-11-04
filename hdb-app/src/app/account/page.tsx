@@ -121,17 +121,10 @@ export default function AccountPage() {
                   <div className="col-span-2">{fmtMoney(user.income)}</div>
                   <div className="font-semibold">Citizenship</div>
                   <div className="col-span-2">{user.citizenship ?? "—"}</div>
-                  <div className="font-semibold">Household Size</div>
-                  <div className="col-span-2">{user.householdSize ?? "—"}</div>
-                  {/* Loan removed as requested */}
                   <div className="font-semibold">Preferred Flat Type</div>
                   <div className="col-span-2">{user.flatType ?? "—"}</div>
-                  <div className="font-semibold">Budget</div>
-                  <div className="col-span-2">{fmtMoney(user.budget)}</div>
                   <div className="font-semibold">Area</div>
                   <div className="col-span-2">{user.area ?? "—"}</div>
-                  <div className="font-semibold">Lease Left</div>
-                  <div className="col-span-2">{user.leaseLeft ? `${user.leaseLeft} years` : "—"}</div>
                 </div>
               )}
             </div>
