@@ -134,7 +134,8 @@ export async function GET(req: { url: string | URL }) {
 
     console.log("[hdbdata] Fetch:", url);
 
-    const res = await fetch(url);
+  // Cache upstream dataset responses briefly to reduce latency and rate limiting
+  const res = await fetch(url, { next: { revalidate: 300 } });
     const data = await res.json();
     const records = data?.result?.records ?? [];
 

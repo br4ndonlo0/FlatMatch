@@ -67,7 +67,9 @@ export async function GET(req: NextRequest) {
       const towns = await getAllTownsFromResaleAPI();
       return NextResponse.json({ ok: true, towns });
     } catch (e: any) {
-      console.error("[finder][GET towns] error:", e?.message || e);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("[finder][GET towns] error:", e?.message || e);
+      }
       // Fallback: let the UI still work with a few
       return NextResponse.json(
         { ok: true, towns: ["ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "QUEENSTOWN", "TOA PAYOH"] },
@@ -99,8 +101,11 @@ export async function POST(req: NextRequest) {
     const flatType: string = (body?.flatType || "").toString().trim().toUpperCase();
 
     const RECENT_MONTHS = 24; // policy window
-    console.log("[finder][POST] towns=", towns, "flatType=", flatType, "policy=cheapest-recent", RECENT_MONTHS, "months");
-    console.log("[finder][POST] weights=", weights);
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      console.log("[finder][POST] towns=", towns, "flatType=", flatType, "policy=cheapest-recent", RECENT_MONTHS, "months");
+      console.log("[finder][POST] weights=", weights);
+    }
 
     if (towns.length === 0) {
       return NextResponse.json(
@@ -124,7 +129,7 @@ export async function POST(req: NextRequest) {
     // Representative row = cheapest resale in last RECENT_MONTHS; if none, cheapest ever.
     const flats: FlatRow[] = await loadCheapestRecentByBlockForTownsAndType(towns, flatType, RECENT_MONTHS);
 
-    console.log(`[finder][POST] candidates after grouping: ${flats.length}`);
+  if (isDev) console.log(`[finder][POST] candidates after grouping: ${flats.length}`);
 
     type Temp = {
       row: FlatRow;
@@ -155,8 +160,8 @@ export async function POST(req: NextRequest) {
       temp.push({ row, here, dMrt, dSchool, dHospital, price });
     }
 
-    console.log(`[finder][POST] geocoded ok=${temp.length}, misses=${misses}`);
-    if (misses > 0) console.warn("[finder][POST] sample geocode misses:", missSamples);
+  if (isDev) console.log(`[finder][POST] geocoded ok=${temp.length}, misses=${misses}`);
+  if (misses > 0 && isDev) console.warn("[finder][POST] sample geocode misses:", missSamples);
 
     if (temp.length === 0) {
       return NextResponse.json({ ok: true, results: [] });
@@ -167,9 +172,11 @@ export async function POST(req: NextRequest) {
     const priceLow = Math.min(...validPrices);
     const priceHigh = Math.max(...validPrices);
     const priceSpan = Math.max(priceHigh - priceLow, 1);
-    console.log(
-      `[finder][POST] price window among candidates: low=${priceLow} high=${priceHigh} span=${priceSpan}`
-    );
+    if (isDev) {
+      console.log(
+        `[finder][POST] price window among candidates: low=${priceLow} high=${priceHigh} span=${priceSpan}`
+      );
+    }
 
     const w = {
       mrt: Math.max(0, weights.mrt || 0),
@@ -228,7 +235,7 @@ export async function POST(req: NextRequest) {
 
     results.sort((a, b) => (b.score - a.score));
 
-    console.log("[finder][POST] top 3:", results.slice(0, 3).map(r => `${r.compositeKey} $${r.resale_price}`));
+  if (isDev) console.log("[finder][POST] top 3:", results.slice(0, 3).map(r => `${r.compositeKey} $${r.resale_price}`));
     const payload = { ok: true, results } as const;
     FINDER_CACHE.set(key, { ts: Date.now(), data: payload });
     return NextResponse.json(payload);

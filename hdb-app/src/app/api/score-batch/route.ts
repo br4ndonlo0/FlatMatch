@@ -29,6 +29,18 @@ function distanceToBaseScore(meters: number, capMeters: number): number {
   return Math.max(0, Math.min(100, s));
 }
 
+// TTL cache for batch results (same inputs → same outputs) to avoid recomputation
+type CacheEntry = { ts: number; data: any };
+const SCORE_CACHE = new Map<string, CacheEntry>();
+const SCORE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// Per-address distance memo to skip repeated nearest scans
+type Dist = { dMrt: number; dSchool: number; dHospital: number };
+const DIST_CACHE = new Map<string, Dist>();
+
+function normU(s: string) { return (s || "").toString().trim().toUpperCase(); }
+function addrKey(b: string, s: string, t: string) { return `${normU(b)}|${normU(s)}|${normU(t)}`; }
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -37,6 +49,21 @@ export async function POST(req: NextRequest) {
 
     if (items.length === 0) {
       return NextResponse.json({ ok: true, results: [] });
+    }
+
+    // Cache key based on ordered compositeKeys (or normalized addresses) and weights
+    const keyParts = items.map((it) => [
+      encodeURIComponent(normU(it.block)),
+      encodeURIComponent(normU(it.street_name)),
+      encodeURIComponent(normU(it.flat_type)),
+      encodeURIComponent((it.month || '').toString().trim()),
+      '0',
+    ].join('__'));
+    const cacheKey = JSON.stringify({ k: keyParts, w: weights, v: 1 });
+    const now = Date.now();
+    const hit = SCORE_CACHE.get(cacheKey);
+    if (hit && now - hit.ts < SCORE_TTL_MS) {
+      return NextResponse.json(hit.data);
     }
 
     // Load amenities (cached in module scope by loaders.ts)
@@ -53,24 +80,29 @@ export async function POST(req: NextRequest) {
       const pt = await geocodeWithCache(it.block, it.street_name, it.town);
       if (!pt) continue;
       const here = { lat: pt.lat, lng: pt.lng } as const;
-      const dMrt = haversineMeters(here as any, stations[0] || here); // will replace with nearestDistance below
-      // compute nearest distances by scanning arrays
-      let bestMrt = Infinity, bestSch = Infinity, bestHosp = Infinity;
-      for (const s of stations) {
-        const d = haversineMeters(here as any, s as any);
-        if (d < bestMrt) bestMrt = d;
-      }
-      for (const s of schools) {
-        const d = haversineMeters(here as any, s as any);
-        if (d < bestSch) bestSch = d;
-      }
-      for (const h of hospitals) {
-        const d = haversineMeters(here as any, h as any);
-        if (d < bestHosp) bestHosp = d;
+
+      const k = addrKey(it.block, it.street_name, it.town);
+      let dists = DIST_CACHE.get(k);
+      if (!dists) {
+        let bestMrt = Infinity, bestSch = Infinity, bestHosp = Infinity;
+        for (const s of stations) {
+          const d = haversineMeters(here as any, s as any);
+          if (d < bestMrt) bestMrt = d;
+        }
+        for (const s of schools) {
+          const d = haversineMeters(here as any, s as any);
+          if (d < bestSch) bestSch = d;
+        }
+        for (const h of hospitals) {
+          const d = haversineMeters(here as any, h as any);
+          if (d < bestHosp) bestHosp = d;
+        }
+        dists = { dMrt: bestMrt, dSchool: bestSch, dHospital: bestHosp };
+        DIST_CACHE.set(k, dists);
       }
 
       const price = Number(it.resale_price);
-      temp.push({ item: it, dMrt: bestMrt, dSchool: bestSch, dHospital: bestHosp, price });
+      temp.push({ item: it, dMrt: dists.dMrt, dSchool: dists.dSchool, dHospital: dists.dHospital, price });
     }
 
     if (temp.length === 0) {
@@ -117,7 +149,9 @@ export async function POST(req: NextRequest) {
       return { compositeKey, score };
     });
 
-    return NextResponse.json({ ok: true, results });
+    const payload = { ok: true, results } as const;
+    SCORE_CACHE.set(cacheKey, { ts: Date.now(), data: payload });
+    return NextResponse.json(payload);
   } catch (e: any) {
     console.error("[score-batch][POST] error:", e?.message || e);
     return NextResponse.json({ ok: false, error: e?.message || "Unexpected error" }, { status: 500 });
