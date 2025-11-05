@@ -33,7 +33,9 @@ const FINDER_CACHE = new Map<string, CacheEntry>();
 const FINDER_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function cacheKeyFromBody(body: any): string {
-  const towns = Array.isArray(body?.towns) ? [...body.towns].map((t: string) => (t || "").toString().trim().toUpperCase()).sort() : [];
+  const towns = Array.isArray(body?.towns)
+    ? [...body.towns].map((t: string) => (t || "").toString().trim().toUpperCase()).sort()
+    : [];
   const weights = body?.weights ?? {};
   const flatType = (body?.flatType || "").toString().trim().toUpperCase();
   const pricePolicy = (body?.pricePolicy || "cheapest-recent-24m").toString();
@@ -51,16 +53,91 @@ function distanceToBaseScore(meters: number, capMeters: number): number {
   return Math.max(0, Math.min(100, s));
 }
 
+// Normalize ANY pointish shape to {lat,lng}
+type AnyPoint = any;
+type LL = { lat: number; lng: number };
+
+function toNum(v: any): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function normalizePoints(items: AnyPoint[], label: string): LL[] {
+  const out: LL[] = [];
+  for (const it of items || []) {
+    let lat: any, lng: any;
+
+    if (it == null) continue;
+
+    // direct fields
+    if (it.lat !== undefined) lat = it.lat;
+    if (it.lng !== undefined) lng = it.lng;
+
+    // common alternates
+    if (lng === undefined && it.lon !== undefined) lng = it.lon;
+    if (lat === undefined && it.latitude !== undefined) lat = it.latitude;
+    if (lng === undefined && it.longitude !== undefined) lng = it.longitude;
+
+    // GeoJSON Feature<Point>
+    if ((lat === undefined || lng === undefined) && it.geometry?.type === "Point" && Array.isArray(it.geometry.coordinates)) {
+      const [lonV, latV] = it.geometry.coordinates;
+      lat = lat ?? latV;
+      lng = lng ?? lonV;
+    }
+
+    // Generic coordinates: [lon, lat]
+    if ((lat === undefined || lng === undefined) && Array.isArray(it.coordinates) && it.coordinates.length >= 2) {
+      const [lonV, latV] = it.coordinates;
+      lat = lat ?? latV;
+      lng = lng ?? lonV;
+    }
+
+    const latN = toNum(lat);
+    const lngN = toNum(lng);
+    if (Number.isFinite(latN) && Number.isFinite(lngN)) {
+      out.push({ lat: latN, lng: lngN });
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    if (out.length === 0 && (items || []).length > 0) {
+      console.warn(`[finder][normalizePoints] "${label}" points present but none normalized. First sample:`, (items || [])[0]);
+    }
+  }
+  return out;
+}
+
 function nearestDistance(
   here: { lat: number; lng: number },
-  candidates: { lat: number; lng: number }[]
+  candidates: LL[]
 ) {
+  if (!candidates || candidates.length === 0) return NaN;
   let best = Infinity;
   for (const c of candidates) {
     const d = haversine(here.lat, here.lng, c.lat, c.lng);
-    if (d < best) best = d;
+    if (Number.isFinite(d) && d < best) best = d;
   }
   return Number.isFinite(best) ? best : NaN;
+}
+
+/** Approximate remaining lease years (no dependency on parseRemainingLeaseYears).
+ * Uses 99-year lease assumption from `lease_commence_date` and listing `month` (YYYY-MM).
+ * Always returns a number.
+ */
+function estimateRemainingLeaseYears(row: FlatRow): number {
+  const anyRow = row as any;
+  const startYear = Number(anyRow?.lease_commence_date);
+  let txnYear = new Date().getFullYear();
+  if (typeof row.month === "string" && /^\d{4}/.test(row.month)) {
+    const y = Number(row.month.slice(0, 4));
+    if (Number.isFinite(y)) txnYear = y;
+  }
+  if (Number.isFinite(startYear)) {
+    const elapsed = Math.max(0, txnYear - startYear);
+    const rem = Math.max(0, 99 - elapsed);
+    return Math.min(99, rem);
+  }
+  return 50; // neutral fallback if unknown
 }
 
 // ---------- GET (utility ops like ?op=towns) ----------
@@ -110,11 +187,11 @@ export async function POST(req: NextRequest) {
     let userAge: number | undefined;
     let userIncome: number | undefined;
     let userDownPaymentBudget: number | undefined;
-    
+
     try {
       await connectDB();
-      const cookieStore = cookies();
-      const username = (await cookieStore).get("username")?.value;
+      const cookieStore = await cookies();
+      const username = cookieStore.get("username")?.value;
       if (username) {
         const user = await User.findOne({ username });
         if (user) {
@@ -148,16 +225,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load amenities from local GeoJSON
-    const stations = await loadStations(); // MRT/LRT
-    const hospitals = await loadHospitals(); // clinics/hospitals
-    const schools = await loadSchools(); // MOE + preschools
+    // Load amenities from local GeoJSON (raw shapes may vary)
+    const stationsRaw = await loadStations();   // MRT/LRT
+    const hospitalsRaw = await loadHospitals(); // clinics/hospitals
+    const schoolsRaw = await loadSchools();     // MOE + preschools
+
+    // Normalize to {lat,lng} so distances compute correctly
+    const stations = normalizePoints(stationsRaw, "stations");
+    const hospitals = normalizePoints(hospitalsRaw, "hospitals");
+    const schools = normalizePoints(schoolsRaw, "schools");
 
     // Load representative flats per (BLOCK, STREET, TOWN) for the given flat type:
     // Representative row = cheapest resale in last RECENT_MONTHS; if none, cheapest ever.
-    const flats: FlatRow[] = await loadCheapestRecentByBlockForTownsAndType(towns, flatType, RECENT_MONTHS);
+    const flats: FlatRow[] = await loadCheapestRecentByBlockForTownsAndType(
+      towns,
+      flatType,
+      RECENT_MONTHS
+    );
 
-  if (isDev) console.log(`[finder][POST] candidates after grouping: ${flats.length}`);
+    if (isDev) console.log(`[finder][POST] candidates after grouping: ${flats.length}`);
 
     type Temp = {
       row: FlatRow;
@@ -174,7 +260,7 @@ export async function POST(req: NextRequest) {
 
     for (const row of flats) {
       const pt = await geocodeWithCache(row.block, row.street_name, row.town);
-      if (!pt) {
+      if (!pt || !Number.isFinite(pt.lat) || !Number.isFinite(pt.lng)) {
         misses++;
         if (missSamples.length < 8) missSamples.push(`${row.block} | ${row.street_name} | ${row.town}`);
         continue;
@@ -188,8 +274,8 @@ export async function POST(req: NextRequest) {
       temp.push({ row, here, dMrt, dSchool, dHospital, price });
     }
 
-  if (isDev) console.log(`[finder][POST] geocoded ok=${temp.length}, misses=${misses}`);
-  if (misses > 0 && isDev) console.warn("[finder][POST] sample geocode misses:", missSamples);
+    if (isDev) console.log(`[finder][POST] geocoded ok=${temp.length}, misses=${misses}`);
+    if (misses > 0 && isDev) console.warn("[finder][POST] sample geocode misses:", missSamples);
 
     if (temp.length === 0) {
       return NextResponse.json({ ok: true, results: [] });
@@ -230,29 +316,43 @@ export async function POST(req: NextRequest) {
       const baseMrt = distanceToBaseScore(t.dMrt, MRT_CAP);
       const baseSchool = distanceToBaseScore(t.dSchool, SCHOOL_CAP);
       const baseHospital = distanceToBaseScore(t.dHospital, HOSPITAL_CAP);
-      
+
       // Calculate affordability score using our library
       let affordabilityScore = 50; // Default fallback (mid-range)
-      
-      if (userAge !== undefined && userIncome !== undefined) {
-        // We have user info, calculate actual affordability
-        // Note: remaining_lease not available in FlatRow, using undefined for now
-        const evaluation = evaluateAffordability({
+
+      // Only compute user-based affordability when inputs are valid numbers
+      const hasAffordInputs =
+        typeof userAge === "number" && Number.isFinite(userAge) &&
+        typeof userIncome === "number" && Number.isFinite(userIncome);
+
+      if (hasAffordInputs) {
+        const remainingLeaseYears = estimateRemainingLeaseYears(t.row);
+
+        const args: {
+          price: number;
+          age: number;
+          remainingLeaseYears: number;
+          incomePerAnnum: number;
+          downPaymentBudget?: number;
+        } = {
           price: t.price,
-          age: userAge,
-          remainingLeaseYears: undefined,
-          incomePerAnnum: userIncome,
-          downPaymentBudget: userDownPaymentBudget,
-        });
-        
-        // Convert score (1-10) to 0-100 scale
-        if (evaluation.score !== undefined) {
+          age: userAge as number,
+          remainingLeaseYears,
+          incomePerAnnum: userIncome as number,
+        };
+
+        if (typeof userDownPaymentBudget === "number" && Number.isFinite(userDownPaymentBudget)) {
+          args.downPaymentBudget = userDownPaymentBudget;
+        }
+
+        const evaluation = evaluateAffordability(args);
+        if (evaluation?.score !== undefined) {
           affordabilityScore = (evaluation.score / 10) * 100;
         }
       } else {
         // Fallback to price-based scoring if no user info
-        affordabilityScore = Number.isFinite(t.price) 
-          ? 100 * clamp01((priceHigh - t.price) / priceSpan) 
+        affordabilityScore = Number.isFinite(t.price)
+          ? 100 * clamp01((priceHigh - t.price) / priceSpan)
           : 50;
       }
 
@@ -287,7 +387,7 @@ export async function POST(req: NextRequest) {
 
     results.sort((a, b) => (b.score - a.score));
 
-  if (isDev) console.log("[finder][POST] top 3:", results.slice(0, 3).map(r => `${r.compositeKey} $${r.resale_price}`));
+    if (isDev) console.log("[finder][POST] top 3:", results.slice(0, 3).map(r => `${r.compositeKey} $${r.resale_price}`));
     const payload = { ok: true, results } as const;
     FINDER_CACHE.set(key, { ts: Date.now(), data: payload });
     return NextResponse.json(payload);
