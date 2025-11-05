@@ -555,7 +555,7 @@ export default function HomePage() {
               View all flats
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 8 }}><path d="M12 4l1.41 1.41L8.83 10H20v2H8.83l4.58 4.59L12 18l-8-8z"/></svg>
             </Link>
-            <Link href="/bookmarked" className="super-button super-button-xl" aria-label="View bookmarked flats" style={{ minWidth: "200px" }}>
+            <Link href="/bookmarks" className="super-button super-button-xl" aria-label="View bookmarked flats" style={{ minWidth: "200px" }}>
               View Bookmarked Flats
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 8 }}><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
             </Link>
