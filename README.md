@@ -51,6 +51,7 @@ Discover Singapore resale HDB flats with fast search, smart scoring, maps, and b
 - Node.js 18–20 (Windows supported). npm ≥ 9
 - A MongoDB connection string (Atlas or local)
 - OneMap credentials (recommended) or a static token
+ - Add your machine's IP to MongoDB Atlas (Project → Network Access → Add IP) so your dev app can connect.
 
 ### Setup
 
@@ -89,6 +90,53 @@ Build & start (production):
 npm run build
 npm start
 ```
+
+### MongoDB Atlas IP Allowlist
+
+If you're using MongoDB Atlas you must permit your client IP, otherwise connections will fail.
+
+Steps:
+1. Log in to Atlas and open your Project.
+2. Go to Network Access.
+3. Click "Add IP Address".
+4. Choose "Add Current IP Address" (recommended) and optionally name it (e.g. `dev-laptop`).
+5. Save and wait a few seconds.
+
+Tips:
+- Residential / dynamic IPs change; repeat if connectivity breaks.
+- Avoid 0.0.0.0/0 except for quick demos (it's wide open).
+- For CI, add its egress IP or use the Atlas Data API (not integrated yet).
+
+### OneMap API Setup
+
+You can either supply a static token or let the app fetch and cache a token using your OneMap credentials.
+
+1. Register at https://www.onemap.gov.sg/ to get an account (email + password).
+2. Choose ONE approach:
+	- Static: set `ONEMAP_TOKEN` only.
+	- Dynamic: set `ONEMAP_EMAIL` and `ONEMAP_PASSWORD` (omit `ONEMAP_TOKEN`).
+3. The backend will call OneMap's auth endpoint (`/api/auth/post/getToken`) and keep the token in memory.
+4. Quick token test (dynamic) with PowerShell (no app needed):
+
+```powershell
+$body = @{ email = '<your-email>'; password = '<your-password>' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'https://www.onemap.gov.sg/api/auth/post/getToken' -Method Post -ContentType 'application/json' -Body $body
+```
+
+If you get an `access_token` in the response, your credentials are valid. If not, check your email/password or try again later.
+
+#### Proxied Endpoints in this app
+
+- `GET /api/onemap/search?query=<text>` (Search API)
+- `GET /api/onemap/nearby?lat=<lat>&lng=<lng>&dist=<meters>` (Nearby amenities)
+- `GET /api/onemap/route?start=<lat,lng>&end=<lat,lng>&routeType=walk` (Walking route & duration)
+
+Token renewal: On 401/403 from OneMap, refresh (static) or verify credentials (dynamic). For production you might implement periodic refresh.
+
+Reference docs:
+- Auth: https://www.onemap.gov.sg/docs/#authentication
+- Search: https://www.onemap.gov.sg/docs/#search
+- Route: https://www.onemap.gov.sg/docs/#route-planning
 
 ## Key flows
 
