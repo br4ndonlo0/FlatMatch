@@ -309,27 +309,27 @@ npm run dev
 
 ```mermaid
 sequenceDiagram
-	autonumber
-	actor User
-	participant UI as Listings UI
-	participant API as /api/bookmarks
-	participant Repo as Bookmark Model
-	database DB as MongoDB
+    autonumber
+    actor User
+    participant UI as Listings UI
+    participant API as /api/bookmarks
+    participant Repo as Bookmark Model
+    participant DB as MongoDB
 
-	User->>UI: Click Add to Bookmarks
-	UI->>API: POST { username, bookmark }
-	API->>Repo: findOne(username)
-	Repo->>DB: Query
-	DB-->>Repo: entry or null
-	alt Duplicate compositeKey
-		API-->>UI: 409 Already bookmarked
-		UI->>UI: Mark as Bookmarked
-	else New
-		Repo->>DB: Insert
-		DB-->>Repo: OK
-		API-->>UI: { success: true }
-		UI->>UI: Mark as Bookmarked
-	end
+    User->>UI: Click Add to Bookmarks
+    UI->>API: POST { username, bookmark }
+    API->>Repo: findOne(username)
+    Repo->>DB: Query
+    DB-->>Repo: entry or null
+    alt Duplicate compositeKey
+        API-->>UI: 409 Already bookmarked
+        UI->>UI: Mark as Bookmarked
+    else New
+        Repo->>DB: Insert
+        DB-->>Repo: OK
+        API-->>UI: { success: true }
+        UI->>UI: Mark as Bookmarked
+    end
 ```
 
 Manage user information:
@@ -341,7 +341,7 @@ sequenceDiagram
 	participant UI as User Info Page
 	participant API as /api/userinfo
 	participant Model as User Model
-	database DB as MongoDB
+	participant DB as MongoDB
 
 	User->>UI: Open /userinfo
 	UI->>API: GET profile
